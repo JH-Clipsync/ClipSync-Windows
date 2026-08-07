@@ -1,0 +1,13 @@
+<Project>
+  <PropertyGroup>
+    <LangVersion>12.0</LangVersion>
+    <Nullable>enable</Nullable>
+    <ImplicitUsings>enable</ImplicitUsings>
+    <TreatWarningsAsErrors>false</TreatWarningsAsErrors>
+    <!-- 在 macOS / Linux 上也能 restore + build net8.0-windows 目标，方便跨平台校验 -->
+    <EnableWindowsTargeting>true</EnableWindowsTargeting>
+    <Version>1.0.0</Version>
+    <Authors>ClipSync</Authors>
+    <Product>ClipSync</Product>
+  </PropertyGroup>
+</Project>

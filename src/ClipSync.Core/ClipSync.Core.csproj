@@ -1,0 +1,9 @@
+<Project Sdk="Microsoft.NET.Sdk">
+
+  <PropertyGroup>
+    <TargetFramework>net8.0</TargetFramework>
+    <RootNamespace>ClipSync.Core</RootNamespace>
+    <!-- 核心层刻意不引用任何 Windows API，这样协议与加密可以在任意平台上跑单测 -->
+  </PropertyGroup>
+
+</Project>

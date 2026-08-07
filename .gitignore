@@ -1,0 +1,22 @@
+## .NET build output
+bin/
+obj/
+
+## Visual Studio / Rider / VSCode
+.vs/
+.idea/
+*.user
+*.suo
+*.userosscache
+*.sln.docstates
+.vscode/
+
+## Publish / CI output
+publish/
+artifacts/
+dist/
+stage/
+
+## OS files
+.DS_Store
+Thumbs.db

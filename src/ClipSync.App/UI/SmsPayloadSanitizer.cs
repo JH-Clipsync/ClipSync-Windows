@@ -12,7 +12,7 @@ using ClipSync.Core.Protocol;
 //   3) 去掉开头省略号
 //   4) 从文本里提取发件人手机号兜底
 // ============================================================
-public static class SmsPayloadSanitizer
+public static partial class SmsPayloadSanitizer
 {
     [GeneratedRegex(@"^【([^】]+?)】")]
     private static partial Regex LeadingBracketTag();

@@ -801,7 +801,6 @@ public class HomeView
                 FontSize = 11,
                 Foreground = new SolidColorBrush(Color.FromArgb(0xD9, 0x11, 0x18, 0x27)),
                 TextWrapping = TextWrapping.Wrap,
-                MaxLines = 2,
                 TextTrimming = TextTrimming.CharacterEllipsis,
                 Margin = new Thickness(0, 6, 0, 0),
             });
@@ -848,7 +847,6 @@ public class HomeView
             Foreground = primary ? Brushes.White : Brushes.Black,
             BorderThickness = new Thickness(0),
             Cursor = System.Windows.Input.Cursors.Hand,
-            CornerRadius = new CornerRadius(7),
         };
         b.Click += (s, e) => onClick(s);
         b.Template = RoundCornerBtnTemplate();

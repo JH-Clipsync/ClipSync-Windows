@@ -6,7 +6,7 @@
     <TreatWarningsAsErrors>false</TreatWarningsAsErrors>
     <!-- 在 macOS / Linux 上也能 restore + build net8.0-windows 目标，方便跨平台校验 -->
     <EnableWindowsTargeting>true</EnableWindowsTargeting>
-    <Version>2026.8.7.1</Version>
+    <Version>2026.8.7.2</Version>
     <Authors>ClipSync</Authors>
     <Product>ClipSync</Product>
   </PropertyGroup>

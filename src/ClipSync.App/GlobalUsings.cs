@@ -7,4 +7,5 @@ global using Panel = System.Windows.Controls.Panel;
 global using TextBox = System.Windows.Controls.TextBox;
 global using CheckBox = System.Windows.Controls.CheckBox;
 global using Image = System.Windows.Controls.Image;
+global using ListBox = System.Windows.Controls.ListBox;
 global using Color = System.Windows.Media.Color;

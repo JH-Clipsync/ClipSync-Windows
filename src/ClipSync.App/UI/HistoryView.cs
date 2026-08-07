@@ -294,11 +294,11 @@ public class HistoryView
             actions.Children.Add(MakePill($"复制 {code}", primary: true, _ => ClipboardWriter.CopyText(code)));
         }
         actions.Children.Add(MakePill("复制", primary: code is null, _ => ClipboardWriter.Apply(msg.Payload)));
-        actions.Children.Add(MakePill("删除", primary: false, danger: true, _ =>
+        actions.Children.Add(MakePill("删除", primary: false, _ =>
         {
             if (MessageBox.Show("确定删除这条记录？", "确认", MessageBoxButton.OKCancel) == MessageBoxResult.OK)
                 HistoryStore.Shared.Remove(msg.Id);
-        }));
+        }, danger: true));
         content.Children.Add(actions);
 
         Grid.SetColumn(content, 1);

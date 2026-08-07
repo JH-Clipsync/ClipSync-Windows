@@ -1,0 +1,178 @@
+name: Release Windows
+
+on:
+  push:
+    tags:
+      - 'v*'
+  workflow_dispatch:
+    inputs:
+      versionName:
+        description: '版本号（如 2026.8.7.1），不填则用 Directory.Build.props 里的值'
+        required: false
+        default: '2026.8.7.1'
+
+permissions:
+  contents: write
+  packages: write
+
+jobs:
+  build:
+    name: Build ClipSync Windows (.NET 8 WPF)
+    runs-on: windows-latest
+
+    steps:
+      - name: 检出代码
+        uses: actions/checkout@v4
+
+      - name: 设置 .NET 8
+        uses: actions/setup-dotnet@v4
+        with:
+          dotnet-version: '8.0.x'
+
+      - name: 注入 Marketing Version（仅 workflow_dispatch）
+        if: github.event_name == 'workflow_dispatch'
+        shell: pwsh
+        run: |
+          $ver = '${{ github.event.inputs.versionName }}'
+          if ([string]::IsNullOrWhiteSpace($ver)) { $ver = '2026.8.7.1' }
+          (Get-Content Directory.Build.props) -replace '<Version>.*</Version>', "<Version>$ver</Version>" | Set-Content Directory.Build.props
+          Write-Host "Version=$ver"
+
+      - name: 还原依赖
+        run: dotnet restore ClipSync.sln
+
+      - name: 发布 win-x64 自包含单文件
+        shell: pwsh
+        run: |
+          dotnet publish src/ClipSync.App/ClipSync.App.csproj `
+            -c Release `
+            -r win-x64 `
+            --self-contained true `
+            -p:PublishSingleFile=true `
+            -p:IncludeNativeLibrariesForSelfExtract=true `
+            -o publish
+          Write-Host "=== 产物清单 ==="
+          Get-ChildItem publish -Filter *.exe | Format-Table Name, Length
+          Get-ChildItem publish -Filter *.dll | Format-Table Name, Length
+
+      - name: 打包成 zip
+        shell: pwsh
+        run: |
+          $ver = (Select-Xml -Path Directory.Build.props -XPath "//Version").Node.InnerText
+          if ([string]::IsNullOrWhiteSpace($ver)) { $ver = '0.0.0' }
+          $zipName = "ClipSync-$ver-win-x64.zip"
+          Compress-Archive -Path publish\* -DestinationPath $zipName -CompressionLevel Optimal
+          Write-Host "ZIP_NAME=$zipName" | Out-File -FilePath $env:GITHUB_ENV -Append
+          Write-Host "已生成 $zipName ($((Get-Item $zipName).Length / 1MB) MB)"
+
+      - name: 上传构建产物
+        uses: actions/upload-artifact@v4
+        with:
+          name: clip-sync-windows
+          path: ClipSync-*.zip
+          if-no-files-found: error
+
+  release:
+    name: 创建 GitHub Release
+    needs: build
+    if: github.event_name == 'push' && startsWith(github.ref, 'refs/tags/') || github.event_name == 'workflow_dispatch'
+    runs-on: ubuntu-latest
+    steps:
+      - name: 下载构建产物
+        uses: actions/download-artifact@v4
+        with:
+          path: dist
+          merge-multiple: true
+
+      - name: 确定版本号
+        id: ver
+        run: |
+          if [ "${{ github.event_name }}" = "workflow_dispatch" ]; then
+            VERSION="${{ github.event.inputs.versionName }}"
+            [ -z "$VERSION" ] && VERSION="0.0.0"
+          else
+            VERSION=${GITHUB_REF#refs/tags/v}
+          fi
+          echo "VERSION=$VERSION" >> $GITHUB_OUTPUT
+          echo "RELEASE_TAG=v$VERSION" >> $GITHUB_OUTPUT
+
+      - name: 检查 Release 是否已存在
+        id: chk
+        run: |
+          code=$(curl -s -o /dev/null -w "%{http_code}" \
+            -H "Authorization: Bearer ${{ github.token }}" \
+            "https://api.github.com/repos/${{ github.repository }}/releases/tags/${{ steps.ver.outputs.RELEASE_TAG }}")
+          echo "exists=$([ "$code" = "200" ] && echo true || echo false)" >> $GITHUB_OUTPUT
+          echo "  Release ${{ steps.ver.outputs.RELEASE_TAG }} 存在性: $code"
+
+      - name: 发布 Release（仅当不存在时创建，避免重复更新被权限拦截）
+        if: steps.chk.outputs.exists == 'false'
+        uses: softprops/action-gh-release@v2
+        with:
+          tag_name: ${{ steps.ver.outputs.RELEASE_TAG }}
+          name: 'ClipSync Windows v${{ steps.ver.outputs.VERSION }}'
+          generate_release_notes: true
+          files: |
+            dist/*.zip
+
+  publish-package:
+    name: 发布容器包到 GitHub Packages (ghcr.io)
+    needs: build
+    if: github.event_name == 'push' && startsWith(github.ref, 'refs/tags/') || github.event_name == 'workflow_dispatch'
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      packages: write
+    steps:
+      - name: 下载 zip 产物
+        uses: actions/download-artifact@v4
+        with:
+          path: dist
+          merge-multiple: true
+
+      - name: 确定版本号
+        id: ver
+        run: |
+          if [ "${{ github.event_name }}" = "workflow_dispatch" ]; then
+            VERSION="${{ github.event.inputs.versionName }}"
+            [ -z "$VERSION" ] && VERSION="0.0.0"
+          else
+            VERSION=${GITHUB_REF#refs/tags/v}
+          fi
+          echo "VERSION=$VERSION" >> $GITHUB_OUTPUT
+
+      - name: 打包成 OCI 容器镜像（把 zip 装进可分发的镜像）
+        run: |
+          ZIP=$(find dist -name '*.zip' | head -n 1)
+          test -n "$ZIP" || { echo "❌ 没有 zip"; exit 1; }
+          STAGE=stage
+          mkdir -p "$STAGE/app" "$STAGE/scratch"
+          cp "$ZIP" "$STAGE/app/clipsync-windows.zip"
+          cp "$ZIP" "$STAGE/scratch/"
+          cat > "$STAGE/Dockerfile" <<'EOF'
+          FROM scratch
+          LABEL org.opencontainers.image.title="ClipSync Windows 安装包"
+          LABEL org.opencontainers.image.description="ClipSync Windows 客户端 zip（OCI 容器包形式分发，文件在 /app/ 与 /scratch/）"
+          LABEL com.clipsync.role="windows-installer"
+          LABEL org.opencontainers.image.source="https://github.com/${{ github.repository }}"
+          LABEL org.opencontainers.image.url="https://github.com/${{ github.repository }}"
+          COPY app/ /app/
+          COPY scratch/ /scratch/
+          EOF
+          OWNER_LC="$(echo '${{ github.repository_owner }}' | tr '[:upper:]' '[:lower:]')"
+          docker build -t ghcr.io/$OWNER_LC/clipsync-windows:${{ steps.ver.outputs.VERSION }} \
+                       -t ghcr.io/$OWNER_LC/clipsync-windows:latest "$STAGE"
+
+      - name: Login to GitHub Container Registry
+        uses: docker/login-action@v3
+        with:
+          registry: ghcr.io
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Push 容器包
+        run: |
+          OWNER_LC="$(echo '${{ github.repository_owner }}' | tr '[:upper:]' '[:lower:]')"
+          docker push ghcr.io/$OWNER_LC/clipsync-windows:${{ steps.ver.outputs.VERSION }}
+          docker push ghcr.io/$OWNER_LC/clipsync-windows:latest
+          echo "✅ 已推 ghcr.io/$OWNER_LC/clipsync-windows"

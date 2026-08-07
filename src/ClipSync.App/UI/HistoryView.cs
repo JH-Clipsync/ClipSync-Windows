@@ -319,7 +319,7 @@ public class HistoryView
             Background = primary
                 ? new SolidColorBrush(Color.FromRgb(0x63, 0x66, 0xF1))
                 : danger
-                    ? new SolidColorBrush(Color.FromArgb(0xFF, 0xFEE, 0x2E, 0x2E))
+                    ? new SolidColorBrush(Color.FromArgb(0xFF, 0xFE, 0x2E, 0x2E))
                     : new SolidColorBrush(Color.FromArgb(0xFF, 0xF3, 0xF4, 0xF6)),
             Foreground = primary
                 ? Brushes.White

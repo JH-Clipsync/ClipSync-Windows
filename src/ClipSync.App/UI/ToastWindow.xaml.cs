@@ -146,7 +146,6 @@ public partial class ToastWindow : Window
                 FontSize = 12,
                 Foreground = new SolidColorBrush(Color.FromArgb(0xD9, 0x11, 0x18, 0x27)),
                 TextWrapping = TextWrapping.Wrap,
-                MaxLines = 3,
                 TextTrimming = TextTrimming.CharacterEllipsis,
                 Margin = new Thickness(40, 0, 0, 6),
             };

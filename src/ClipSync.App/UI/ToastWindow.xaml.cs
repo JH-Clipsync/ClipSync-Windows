@@ -323,7 +323,7 @@ public partial class ToastWindow : Window
         };
         var hoverTrigger = new Trigger
         {
-            Property = System.Windows.Controls.UIElement.IsMouseOverProperty,
+            Property = System.Windows.UIElement.IsMouseOverProperty,
             Value = true,
         };
         hoverTrigger.Setters.Add(new Setter
@@ -457,7 +457,7 @@ public partial class ToastWindow : Window
         };
         var hover = new Trigger
         {
-            Property = System.Windows.Controls.UIElement.IsMouseOverProperty, Value = true,
+            Property = System.Windows.UIElement.IsMouseOverProperty, Value = true,
         };
         hover.Setters.Add(new Setter
         {

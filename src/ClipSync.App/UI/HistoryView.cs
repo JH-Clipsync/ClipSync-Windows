@@ -94,7 +94,6 @@ public class HistoryView
                 FontWeight = FontWeights.Medium,
                 FontSize = 12,
                 Cursor = System.Windows.Input.Cursors.Hand,
-                CornerRadius = new CornerRadius(7),
                 Template = RoundCornerBtnTemplate(),
                 Command = new RelayCommand(_ =>
                 {
@@ -329,7 +328,6 @@ public class HistoryView
                     : Brushes.Black,
             BorderThickness = new Thickness(0),
             Cursor = System.Windows.Input.Cursors.Hand,
-            CornerRadius = new CornerRadius(7),
         };
         b.Click += (s, e) => onClick(s);
         b.Template = RoundCornerBtnTemplate();

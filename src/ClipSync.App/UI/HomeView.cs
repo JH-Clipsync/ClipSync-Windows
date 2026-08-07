@@ -229,7 +229,6 @@ public class HomeView
             Background = new SolidColorBrush(Color.FromRgb(0x63, 0x66, 0xF1)),
             Foreground = Brushes.White,
             BorderThickness = new Thickness(0),
-            CornerRadius = new CornerRadius(7),
             Cursor = System.Windows.Input.Cursors.Hand,
             VerticalAlignment = VerticalAlignment.Center,
             Margin = new Thickness(10, 0, 0, 0),
@@ -337,9 +336,10 @@ public class HomeView
             Margin = new Thickness(26, 2, 0, 6),
         };
         body.Children.Add(resolvedHint);
-        serverInput.TextChanged += (_, _) =>
+        var serverTextBox = (TextBox)serverInput;
+        serverTextBox.TextChanged += (_, _) =>
         {
-            var n = ServerAddress.Normalize(serverInput.Text);
+            var n = ServerAddress.Normalize(serverTextBox.Text);
             resolvedHint.Text = string.IsNullOrEmpty(n) ? "请填写服务器地址" : $"将连接 {n}";
         };
         var n0 = ServerAddress.Normalize(SettingsStore.Shared.ServerUrl);
@@ -366,7 +366,7 @@ public class HomeView
             Margin = new Thickness(0, 6, 0, 0),
             Text = "填写账号密码后点「连接」，会自动校验并取得 Token",
         };
-        credsHint.SetBinding(VisibilityProperty, new System.Windows.Data.Binding
+        credsHint.SetBinding(System.Windows.UIElement.VisibilityProperty, new System.Windows.Data.Binding
         {
             Source = SettingsStore.Shared,
             Path = new PropertyPath(nameof(SettingsStore.HasCredentials)),
@@ -374,7 +374,7 @@ public class HomeView
         });
         body.Children.Add(credsHint);
 
-        return (serverInput, usernameInput, (PasswordBox)passwordInput, null);
+        return ((TextBox)serverInput, (TextBox)usernameInput, (PasswordBox)passwordInput, null);
     }
 
     // ============================================================
@@ -412,7 +412,7 @@ public class HomeView
 
         // 同步密码输入
         var spContainer = new StackPanel { Margin = new Thickness(0, 2, 0, 6) };
-        spContainer.SetBinding(VisibilityProperty, new System.Windows.Data.Binding
+        spContainer.SetBinding(System.Windows.UIElement.VisibilityProperty, new System.Windows.Data.Binding
         {
             Source = e2ee,
             Path = new PropertyPath(nameof(CheckBox.IsChecked)),
@@ -862,7 +862,7 @@ public class HomeView
             new TemplateBindingExtension(Control.BackgroundProperty));
         borderFactory.SetValue(Border.PaddingProperty,
             new TemplateBindingExtension(Control.PaddingProperty));
-        borderFactory.SetValue(SnapsToDevicePixelsProperty, true);
+        borderFactory.SetValue(System.Windows.UIElement.SnapsToDevicePixelsProperty, true);
 
         var presenterFactory = new FrameworkElementFactory(typeof(ContentPresenter));
         presenterFactory.SetValue(ContentPresenter.HorizontalAlignmentProperty, HorizontalAlignment.Center);

@@ -93,6 +93,26 @@ jobs:
           if (-not $iscc) { Write-Host "::error::找不到 ISCC.exe"; exit 1 }
           Write-Host "ISCC=$iscc"
 
+          $innoDir = Split-Path $iscc
+          $langFile = Join-Path $innoDir "Languages\ChineseSimplified.isl"
+          if (-not (Test-Path $langFile)) {
+            Write-Host "下载简体中文语言包..."
+            $urls = @(
+              "https://cdn.jsdelivr.net/gh/kira-96/Inno-Setup-Chinese-Simplified-Translation@main/ChineseSimplified.isl",
+              "https://raw.githubusercontent.com/kira-96/Inno-Setup-Chinese-Simplified-Translation/main/ChineseSimplified.isl"
+            )
+            foreach ($u in $urls) {
+              try {
+                Invoke-WebRequest -Uri $u -OutFile $langFile -UseBasicParsing -TimeoutSec 30
+                if ((Test-Path $langFile) -and (Get-Item $langFile).Length -gt 5000) {
+                  Write-Host "已下载中文语言包: $((Get-Item $langFile).Length) bytes"
+                  break
+                }
+              } catch { Write-Host "下载失败: $u - $($_.Exception.Message)" }
+            }
+            if (-not (Test-Path $langFile)) { Write-Host "::error::中文语言包下载失败"; exit 1 }
+          }
+
           $issPath = "installer\ClipSync.iss"
           $content = Get-Content $issPath -Raw -Encoding UTF8
           $content = $content -replace '#define MyAppVersion ".*"', "#define MyAppVersion `"$env:VERSION`""

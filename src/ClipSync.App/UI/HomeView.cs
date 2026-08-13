@@ -30,25 +30,16 @@ public class HomeView
     private readonly TextBlock _statusText;
     private readonly Border _statusCard;
     private readonly TextBlock _serverHint;
+    private readonly StackPanel _authErrorPanel;
     private readonly TextBlock _authError;
+    private readonly Button _authErrorGoBtn;
     private readonly Button _connectBtn;
-
-    private readonly TextBox _serverInput;
-    private readonly TextBox _usernameInput;
-    private readonly PasswordBox _passwordInput;
-    private readonly Image? _loggedInBadge;
-
-    private readonly CheckBox _e2eeToggle;
-    private readonly PasswordBox _syncPasswordInput;
-    private readonly TextBlock _encryptionStatus;
-    private readonly TextBlock _decryptError;
-
-    private readonly CheckBox _autoClipToggle;
-    private readonly CheckBox _showContentToggle;
 
     private readonly TextBlock _smsCount;
     private readonly TextBlock _clipCount;
     private readonly Panel _latestContainer;
+
+    private readonly Border _onboardingBanner;
 
     public HomeView(MainWindow window)
     {
@@ -68,24 +59,17 @@ public class HomeView
         };
         scroll.Content = col;
 
+        // 0) 首次设置横幅：未配置完成前置顶引导
+        _onboardingBanner = BuildOnboardingBanner();
+        col.Children.Add(_onboardingBanner);
+        AddSpacer(col, 16);
+
         // 1) 状态卡
-        (_statusCard, _statusText, _serverHint, _authError, _connectBtn) = BuildStatusCard();
+        (_statusCard, _statusText, _serverHint, _authErrorPanel, _authError, _authErrorGoBtn, _connectBtn) = BuildStatusCard();
         col.Children.Add(_statusCard);
         AddSpacer(col, 16);
 
-        // 2) 账号卡
-        (_serverInput, _usernameInput, _passwordInput, _loggedInBadge) = BuildServerCard(col);
-        AddSpacer(col, 16);
-
-        // 3) 加密卡
-        (_e2eeToggle, _syncPasswordInput, _encryptionStatus, _decryptError) = BuildEncryptionCard(col);
-        AddSpacer(col, 16);
-
-        // 4) 同步卡
-        (_autoClipToggle, _showContentToggle) = BuildSyncCard(col);
-        AddSpacer(col, 16);
-
-        // 5) 计数 + 最近消息
+        // 2) 信息区（短信/剪贴板计数 + 最近消息）
         (_smsCount, _clipCount, _latestContainer) = BuildInfoSection(col);
 
         Root = scroll;
@@ -97,39 +81,23 @@ public class HomeView
                 || WSClient.Shared.State == ConnectionState.Connecting)
             {
                 WSClient.Shared.Disconnect();
+                return;
             }
-            else
+
+            // 未配置账号密码时不直接连接，给出提示并提供跳转入口
+            if (!SettingsStore.Shared.HasCredentials)
             {
-                await WSClient.Shared.ConnectAsync(SettingsStore.Shared);
+                ShowAuthError(
+                    SettingsStore.Shared.Username.Length == 0
+                        ? "请先设置用户名和密码后再连接。"
+                        : "请先设置登录密码后再连接。",
+                    showGoSettings: true);
+                return;
             }
+
+            ShowAuthError("", showGoSettings: false);
+            await WSClient.Shared.ConnectAsync(SettingsStore.Shared);
         };
-
-        // 账号输入框双向绑定（手动写）
-        _serverInput.Text = SettingsStore.Shared.ServerUrl;
-        _serverInput.TextChanged += (_, _) => SettingsStore.Shared.ServerUrl = _serverInput.Text;
-        _usernameInput.Text = SettingsStore.Shared.Username;
-        _usernameInput.TextChanged += (_, _) => SettingsStore.Shared.Username = _usernameInput.Text;
-        _passwordInput.Password = SettingsStore.Shared.Password;
-        _passwordInput.PasswordChanged += (_, _) => SettingsStore.Shared.Password = _passwordInput.Password;
-
-        // 加密开关
-        _e2eeToggle.IsChecked = SettingsStore.Shared.E2eeEnabled;
-        _e2eeToggle.Checked += (_, _) => SettingsStore.Shared.E2eeEnabled = true;
-        _e2eeToggle.Unchecked += (_, _) => SettingsStore.Shared.E2eeEnabled = false;
-        _syncPasswordInput.Password = SettingsStore.Shared.SyncPassword;
-        _syncPasswordInput.PasswordChanged += (_, _) =>
-        {
-            SettingsStore.Shared.SyncPassword = _syncPasswordInput.Password;
-            UpdateEncryptionStatus();
-        };
-
-        // 同步开关
-        _autoClipToggle.IsChecked = SettingsStore.Shared.AutoSyncClipboard;
-        _autoClipToggle.Checked += (_, _) => SettingsStore.Shared.AutoSyncClipboard = true;
-        _autoClipToggle.Unchecked += (_, _) => SettingsStore.Shared.AutoSyncClipboard = false;
-        _showContentToggle.IsChecked = SettingsStore.Shared.ShowContent;
-        _showContentToggle.Checked += (_, _) => SettingsStore.Shared.ShowContent = true;
-        _showContentToggle.Unchecked += (_, _) => SettingsStore.Shared.ShowContent = false;
 
         // 实时刷新：WS 状态 / 历史变化
         WSClient.Shared.PropertyChanged += Ws_PropertyChanged;
@@ -142,19 +110,19 @@ public class HomeView
     public void Refresh()
     {
         UpdateStatusCard();
-        UpdateEncryptionStatus();
+        UpdateOnboardingBanner();
         RefreshInfo();
     }
 
     public void RefreshClipboardToggle()
     {
-        _autoClipToggle.IsChecked = SettingsStore.Shared.AutoSyncClipboard;
+        // 设置统一在 SettingsView 里修改，这里不再持有本地开关引用
     }
 
     // ============================================================
     // 状态卡
     // ============================================================
-    private (Border card, TextBlock status, TextBlock hint, TextBlock error, Button btn) BuildStatusCard()
+    private (Border card, TextBlock status, TextBlock hint, StackPanel errorPanel, TextBlock error, Button goBtn, Button btn) BuildStatusCard()
     {
         var card = new Border
         {
@@ -209,13 +177,40 @@ public class HomeView
         {
             FontSize = 11,
             Foreground = new SolidColorBrush(Color.FromRgb(0xF5, 0x9E, 0x0B)),
-            Margin = new Thickness(0, 3, 0, 0),
+            VerticalAlignment = VerticalAlignment.Center,
             TextWrapping = TextWrapping.Wrap,
+        };
+
+        // 错误提示行：错误文字 + 右侧"去设置"按钮（点了跳转到设置页填账号密码）
+        var goBtn = new Button
+        {
+            Content = "去设置",
+            FontSize = 11,
+            FontWeight = FontWeights.SemiBold,
+            Padding = new Thickness(10, 3, 10, 3),
+            Background = new SolidColorBrush(Color.FromRgb(0x63, 0x66, 0xF1)),
+            Foreground = Brushes.White,
+            BorderThickness = new Thickness(0),
+            Cursor = System.Windows.Input.Cursors.Hand,
+            Margin = new Thickness(8, 0, 0, 0),
+            VerticalAlignment = VerticalAlignment.Center,
             Visibility = Visibility.Collapsed,
         };
+        goBtn.Template = RoundCornerBtnTemplate();
+        goBtn.Click += (_, _) => _window.NavigateToSettings();
+
+        var errorPanel = new StackPanel
+        {
+            Orientation = Orientation.Horizontal,
+            Margin = new Thickness(0, 3, 0, 0),
+            Visibility = Visibility.Collapsed,
+        };
+        errorPanel.Children.Add(error);
+        errorPanel.Children.Add(goBtn);
+
         mid.Children.Add(status);
         mid.Children.Add(hint);
-        mid.Children.Add(error);
+        mid.Children.Add(errorPanel);
         Grid.SetColumn(mid, 1);
         grid.Children.Add(mid);
 
@@ -238,7 +233,7 @@ public class HomeView
         grid.Children.Add(btn);
 
         card.Child = grid;
-        return (card, status, hint, error, btn);
+        return (card, status, hint, errorPanel, error, goBtn, btn);
     }
 
     private void UpdateStatusCard()
@@ -256,6 +251,12 @@ public class HomeView
                     if (icon.Child is TextBlock tb) { tb.Text = "✓"; tb.Foreground = new SolidColorBrush(Color.FromRgb(0x10, 0xB9, 0x81)); }
                     s.Background = new SolidColorBrush(Color.FromArgb(0x0F, 0x10, 0xB9, 0x81));
                     s.BorderBrush = new SolidColorBrush(Color.FromArgb(0x33, 0x10, 0xB9, 0x81));
+                    // 首次连接成功后自动标记设置完成，横幅消失
+                    if (!SettingsStore.Shared.OnboardingCompleted)
+                    {
+                        SettingsStore.Shared.OnboardingCompleted = true;
+                        UpdateOnboardingBanner();
+                    }
                     break;
                 case ConnectionState.Connecting:
                     icon.Background = new SolidColorBrush(Color.FromArgb(0x26, 0xF5, 0x9E, 0x0B));
@@ -285,12 +286,13 @@ public class HomeView
         var err = WSClient.Shared.AuthError;
         if (!string.IsNullOrEmpty(err) && st == ConnectionState.Disconnected)
         {
-            _authError.Text = err;
-            _authError.Visibility = Visibility.Visible;
+            // 连接返回的错误：缺少账号密码时提供"去设置"按钮，其他错误只显示文字
+            var needsSettings = !SettingsStore.Shared.HasCredentials;
+            ShowAuthError(err, showGoSettings: needsSettings);
         }
-        else
+        else if (st != ConnectionState.Disconnected)
         {
-            _authError.Visibility = Visibility.Collapsed;
+            ShowAuthError("", showGoSettings: false);
         }
 
         // 按钮文案
@@ -299,18 +301,37 @@ public class HomeView
             case ConnectionState.Connecting:
                 _connectBtn.Content = "取消";
                 _connectBtn.Background = new SolidColorBrush(Color.FromRgb(0x6B, 0x72, 0x80));
+                _connectBtn.IsEnabled = true;
                 break;
             case ConnectionState.Connected:
                 _connectBtn.Content = "断开";
                 _connectBtn.Background = new SolidColorBrush(Color.FromRgb(0xEF, 0x44, 0x44));
+                _connectBtn.IsEnabled = true;
                 break;
             default:
                 _connectBtn.Content = "连接";
                 _connectBtn.Background = new SolidColorBrush(Color.FromRgb(0x63, 0x66, 0xF1));
-                _connectBtn.IsEnabled = SettingsStore.Shared.HasCredentials
-                                        || SettingsStore.Shared.Token.Length > 0;
+                // 始终可点：未配置时点击会提示并引导去设置页，而不是把按钮置灰
+                _connectBtn.IsEnabled = true;
                 break;
         }
+    }
+
+    /// <summary>在状态卡上显示/隐藏错误提示行。</summary>
+    /// <param name="message">错误文字，空串表示隐藏。</param>
+    /// <param name="showGoSettings">是否显示右侧"去设置"按钮。</param>
+    private void ShowAuthError(string message, bool showGoSettings)
+    {
+        if (string.IsNullOrEmpty(message))
+        {
+            _authErrorPanel.Visibility = Visibility.Collapsed;
+            _authErrorGoBtn.Visibility = Visibility.Collapsed;
+            return;
+        }
+
+        _authError.Text = message;
+        _authErrorPanel.Visibility = Visibility.Visible;
+        _authErrorGoBtn.Visibility = showGoSettings ? Visibility.Visible : Visibility.Collapsed;
     }
 
     // ============================================================
@@ -325,7 +346,7 @@ public class HomeView
         body.Children.Add(LabeledInput(
             "🌐",
             out var serverInput,
-            "服务器地址，例如 192.168.1.10:8080",
+            "服务器地址，例如 wss://www.95qw.com/clipsync 或 192.168.1.10:8080",
             isPassword: false));
 
         var resolvedHint = new TextBlock
@@ -340,10 +361,16 @@ public class HomeView
         serverTextBox.TextChanged += (_, _) =>
         {
             var n = ServerAddress.Normalize(serverTextBox.Text);
-            resolvedHint.Text = string.IsNullOrEmpty(n) ? "请填写服务器地址" : $"将连接 {n}";
+            var ws = ServerAddress.WsBase(serverTextBox.Text);
+            resolvedHint.Text = string.IsNullOrEmpty(n)
+                ? "请填写服务器地址"
+                : $"HTTP 基址：{n}，WebSocket 基址：{ws}";
         };
         var n0 = ServerAddress.Normalize(SettingsStore.Shared.ServerUrl);
-        resolvedHint.Text = string.IsNullOrEmpty(n0) ? "请填写服务器地址" : $"将连接 {n0}";
+        var ws0 = ServerAddress.WsBase(SettingsStore.Shared.ServerUrl);
+        resolvedHint.Text = string.IsNullOrEmpty(n0)
+            ? "请填写服务器地址"
+            : $"HTTP 基址：{n0}，WebSocket 基址：{ws0}";
 
         // 用户名
         body.Children.Add(LabeledInput(
@@ -418,32 +445,6 @@ public class HomeView
             Path = new PropertyPath(nameof(CheckBox.IsChecked)),
             Converter = new BoolToVisibilityConverter(),
         });
-        var spRow = new StackPanel
-        {
-            Orientation = Orientation.Horizontal,
-            VerticalAlignment = VerticalAlignment.Center,
-        };
-        spRow.Children.Add(new TextBlock
-        {
-            Text = "🔑",
-            Margin = new Thickness(0, 0, 8, 0),
-            VerticalAlignment = VerticalAlignment.Center,
-            Width = 18,
-        });
-        var syncPwd = new PasswordBox
-        {
-            PasswordChar = '•',
-            Height = 28,
-            VerticalContentAlignment = VerticalAlignment.Center,
-            Padding = new Thickness(8, 0, 8, 0),
-            BorderBrush = new SolidColorBrush(Color.FromRgb(0xE5, 0xE7, 0xEB)),
-            BorderThickness = new Thickness(1),
-            Background = Brushes.White,
-        };
-        Grid.SetColumnSpan(syncPwd, 1);
-        // 简单的 TextBlock + PasswordBox 宽度自动
-        syncPwd.HorizontalAlignment = HorizontalAlignment.Stretch;
-        spRow.Children.Add(syncPwd);
         var gridWrap = new Grid();
         gridWrap.ColumnDefinitions.Add(new ColumnDefinition { Width = GridLength.Auto });
         gridWrap.ColumnDefinitions.Add(new ColumnDefinition { Width = new GridLength(1, GridUnitType.Star) });
@@ -456,6 +457,17 @@ public class HomeView
         };
         Grid.SetColumn(icon, 0);
         gridWrap.Children.Add(icon);
+        var syncPwd = new PasswordBox
+        {
+            PasswordChar = '•',
+            Height = 28,
+            VerticalContentAlignment = VerticalAlignment.Center,
+            Padding = new Thickness(8, 0, 8, 0),
+            BorderBrush = new SolidColorBrush(Color.FromRgb(0xE5, 0xE7, 0xEB)),
+            BorderThickness = new Thickness(1),
+            Background = Brushes.White,
+            HorizontalAlignment = HorizontalAlignment.Stretch,
+        };
         Grid.SetColumn(syncPwd, 1);
         gridWrap.Children.Add(syncPwd);
         spContainer.Children.Add(gridWrap);
@@ -492,33 +504,13 @@ public class HomeView
 
     private void UpdateEncryptionStatus()
     {
-        var s = SettingsStore.Shared;
-        if (!s.E2eeEnabled)
-        {
-            _encryptionStatus.Text = "加密已关闭：消息以明文传输";
-            _encryptionStatus.Foreground = new SolidColorBrush(Color.FromRgb(0x6B, 0x72, 0x80));
-        }
-        else if (s.UsingBuiltinSyncPassword)
-        {
-            _encryptionStatus.Text = "⚠️ 未填同步密码，正在使用内置默认密码（各端通用，强度低于自设密码）";
-            _encryptionStatus.Foreground = new SolidColorBrush(Color.FromRgb(0xF5, 0x9E, 0x0B));
-        }
-        else
-        {
-            var fp = PayloadCipher.Fingerprint(s.EffectiveSyncPassword);
-            _encryptionStatus.Text = $"密钥指纹：{fp}";
-            _encryptionStatus.Foreground = new SolidColorBrush(Color.FromRgb(0x10, 0xB9, 0x81));
-        }
-
-        var df = WSClient.Shared.DecryptFailure;
-        _decryptError.Text = string.IsNullOrEmpty(df) ? "" : $"⚠️ {df}";
-        _decryptError.Visibility = string.IsNullOrEmpty(df) ? Visibility.Collapsed : Visibility.Visible;
+        // 加密状态已迁移到 SettingsView，主页面不再展示
     }
 
     // ============================================================
-    // 同步卡
+    // 同步卡（保留占位，实际设置已迁移到 SettingsView）
     // ============================================================
-    private (CheckBox autoClip, CheckBox showContent) BuildSyncCard(Panel parent)
+    private (CheckBox autoClip, CheckBox autoStart, CheckBox showContent) BuildSyncCard(Panel parent)
     {
         var (card, body) = CardContainer("同步", Colors.SeaGreen);
         parent.Children.Add(card);
@@ -545,13 +537,44 @@ public class HomeView
         };
         body.Children.Add(autoClip);
 
-        var div = new Border
+        var div1 = new Border
         {
             Height = 1,
             Background = new SolidColorBrush(Color.FromArgb(0x14, 0x00, 0x00, 0x00)),
             Margin = new Thickness(0, 4, 0, 10),
         };
-        body.Children.Add(div);
+        body.Children.Add(div1);
+
+        // 开机自启：写 HKCU Run，不需要管理员权限
+        var autoStart = new CheckBox
+        {
+            Margin = new Thickness(0, 0, 0, 10),
+            Content = new StackPanel
+            {
+                Orientation = Orientation.Horizontal,
+                Children =
+                {
+                    new TextBlock { Text = "🚀 ", Margin = new Thickness(0,0,6,0) },
+                    new StackPanel
+                    {
+                        Children =
+                        {
+                            new TextBlock { Text = "开机自动启动", FontSize = 13, FontWeight = FontWeights.Medium },
+                            new TextBlock { Text = "登录 Windows 后后台自动运行", FontSize = 11, Foreground = new SolidColorBrush(Color.FromRgb(0x6B, 0x72, 0x80)) },
+                        },
+                    },
+                },
+            },
+        };
+        body.Children.Add(autoStart);
+
+        var div2 = new Border
+        {
+            Height = 1,
+            Background = new SolidColorBrush(Color.FromArgb(0x14, 0x00, 0x00, 0x00)),
+            Margin = new Thickness(0, 4, 0, 10),
+        };
+        body.Children.Add(div2);
 
         var showContent = new CheckBox
         {
@@ -574,7 +597,7 @@ public class HomeView
         };
         body.Children.Add(showContent);
 
-        return (autoClip, showContent);
+        return (autoClip, autoStart, showContent);
     }
 
     // ============================================================
@@ -855,8 +878,9 @@ public class HomeView
 
     private static ControlTemplate RoundCornerBtnTemplate()
     {
+        // 修复：去掉 TargetName="bd"，避免 FrameworkElementFactory NameScope 在 Seal 时崩溃。
+        // hover/press 时直接改 Button（TemplatedParent）的 Opacity，视觉效果与改 Border 等价。
         var borderFactory = new FrameworkElementFactory(typeof(Border));
-        borderFactory.SetValue(Border.NameProperty, "bd");
         borderFactory.SetValue(Border.CornerRadiusProperty, new CornerRadius(7));
         borderFactory.SetValue(Border.BackgroundProperty,
             new TemplateBindingExtension(Control.BackgroundProperty));
@@ -871,20 +895,10 @@ public class HomeView
 
         var template = new ControlTemplate(typeof(Button)) { VisualTree = borderFactory };
         var hover = new Trigger { Property = UIElement.IsMouseOverProperty, Value = true };
-        hover.Setters.Add(new Setter
-        {
-            TargetName = "bd",
-            Property = UIElement.OpacityProperty,
-            Value = 0.9,
-        });
+        hover.Setters.Add(new Setter { Property = UIElement.OpacityProperty, Value = 0.9 });
         template.Triggers.Add(hover);
         var pressed = new Trigger { Property = Button.IsPressedProperty, Value = true };
-        pressed.Setters.Add(new Setter
-        {
-            TargetName = "bd",
-            Property = UIElement.OpacityProperty,
-            Value = 0.75,
-        });
+        pressed.Setters.Add(new Setter { Property = UIElement.OpacityProperty, Value = 0.75 });
         template.Triggers.Add(pressed);
         return template;
     }
@@ -924,6 +938,52 @@ public class HomeView
         body.Children.Add(header);
         card.Child = body;
         return (card, body);
+    }
+
+    // ============================================================
+    // 首次设置横幅：直接嵌入主窗口，替代原来的模态安装向导
+    // ============================================================
+    private Border BuildOnboardingBanner()
+    {
+        var card = new Border
+        {
+            CornerRadius = new CornerRadius(12),
+            Padding = new Thickness(16),
+            Background = new SolidColorBrush(Color.FromArgb(0x14, 0x63, 0x66, 0xF1)),
+            BorderBrush = new SolidColorBrush(Color.FromArgb(0x33, 0x63, 0x66, 0xF1)),
+            BorderThickness = new Thickness(1),
+            Visibility = SettingsStore.Shared.OnboardingCompleted
+                ? Visibility.Collapsed
+                : Visibility.Visible,
+        };
+
+        var col = new StackPanel();
+        var title = new TextBlock
+        {
+            Text = "欢迎使用 ClipSync 👋",
+            FontSize = 16,
+            FontWeight = FontWeights.SemiBold,
+            Foreground = new SolidColorBrush(Color.FromRgb(0x11, 0x18, 0x27)),
+        };
+        var desc = new TextBlock
+        {
+            Text = "请完成下方账号与加密设置，然后点击「连接」。首次连接成功后，此提示将自动消失。",
+            FontSize = 12,
+            Foreground = new SolidColorBrush(Color.FromRgb(0x6B, 0x72, 0x80)),
+            TextWrapping = TextWrapping.Wrap,
+            Margin = new Thickness(0, 6, 0, 0),
+        };
+        col.Children.Add(title);
+        col.Children.Add(desc);
+        card.Child = col;
+        return card;
+    }
+
+    private void UpdateOnboardingBanner()
+    {
+        _onboardingBanner.Visibility = SettingsStore.Shared.OnboardingCompleted
+            ? Visibility.Collapsed
+            : Visibility.Visible;
     }
 
     private static FrameworkElement LabeledInput(
@@ -1040,7 +1100,7 @@ public class HomeView
             System.Windows.Application.Current?.Dispatcher.BeginInvoke(() =>
             {
                 UpdateStatusCard();
-                UpdateEncryptionStatus();
+                UpdateOnboardingBanner();
             });
         }
     }
@@ -1050,7 +1110,15 @@ public class HomeView
         if (e.PropertyName is nameof(SettingsStore.HasCredentials)
             or nameof(SettingsStore.Token))
         {
-            System.Windows.Application.Current?.Dispatcher.BeginInvoke(UpdateStatusCard);
+            System.Windows.Application.Current?.Dispatcher.BeginInvoke(() =>
+            {
+                UpdateStatusCard();
+                // 用户补全了账号密码后，清掉"请先设置…"的提示
+                if (SettingsStore.Shared.HasCredentials)
+                {
+                    ShowAuthError("", showGoSettings: false);
+                }
+            });
         }
         if (e.PropertyName is nameof(SettingsStore.E2eeEnabled)
             or nameof(SettingsStore.SyncPassword))

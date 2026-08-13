@@ -37,6 +37,7 @@ public sealed class SettingsStore : INotifyPropertyChanged
         [JsonPropertyName("autoSyncClipboard")] public bool AutoSyncClipboard { get; set; } = true;
         [JsonPropertyName("autoStart")] public bool AutoStart { get; set; }
         [JsonPropertyName("minimizeToTrayOnClose")] public bool MinimizeToTrayOnClose { get; set; } = true;
+        [JsonPropertyName("onboardingCompleted")] public bool OnboardingCompleted { get; set; }
     }
 
     private readonly Snapshot _data;
@@ -95,6 +96,9 @@ public sealed class SettingsStore : INotifyPropertyChanged
         {
             if (_data.SyncPassword == value) return;
             _data.SyncPassword = value;
+            // 密码变了：必须把旧密码派生出的密钥从 PayloadCipher 缓存里清掉，
+            // 否则下一条发送/接收仍会命中旧缓存，导致"明明改了密码还在用旧密钥解密"
+            PayloadCipher.InvalidateKeyCache();
             Persist();
             Notify(nameof(EffectiveSyncPassword));
             Notify(nameof(UsingBuiltinSyncPassword));
@@ -109,6 +113,8 @@ public sealed class SettingsStore : INotifyPropertyChanged
         {
             if (_data.E2eeEnabled == value) return;
             _data.E2eeEnabled = value;
+            // 开关切换 = EffectiveSyncPassword 变了（空串 ↔ 密码），旧缓存必须作废
+            PayloadCipher.InvalidateKeyCache();
             Persist();
             Notify(nameof(EffectiveSyncPassword));
             Notify(nameof(UsingBuiltinSyncPassword));
@@ -144,6 +150,13 @@ public sealed class SettingsStore : INotifyPropertyChanged
         set { if (_data.MinimizeToTrayOnClose == value) return; _data.MinimizeToTrayOnClose = value; Persist(); }
     }
 
+    /// <summary>是否已完成首次启动向导。未完成时 App 启动会先弹 OnboardingWizard。</summary>
+    public bool OnboardingCompleted
+    {
+        get => _data.OnboardingCompleted;
+        set { if (_data.OnboardingCompleted == value) return; _data.OnboardingCompleted = value; Persist(); }
+    }
+
     /// <summary>
     /// 实际用来派生密钥的密码。
     ///
@@ -177,7 +190,13 @@ public sealed class SettingsStore : INotifyPropertyChanged
             {
                 var snapshot = JsonSerializer.Deserialize<Snapshot>(
                     File.ReadAllText(path, Encoding.UTF8));
-                if (snapshot is not null) return new SettingsStore(snapshot);
+                if (snapshot is not null)
+                {
+                    // token 是会话级凭证：每次启动都必须用账号密码重新校验，
+                    // 不能复用上次落盘的 token 直连。
+                    snapshot.Token = "";
+                    return new SettingsStore(snapshot);
+                }
             }
         }
         catch (Exception ex)
@@ -203,8 +222,13 @@ public sealed class SettingsStore : INotifyPropertyChanged
         try
         {
             AppPaths.EnsureRoot();
+            // 写盘前把 token 临时清空：token 是会话凭证，不应持久化，
+            // 每次启动都必须用账号密码重新登录换取。
+            var savedToken = _data.Token;
+            _data.Token = "";
             var json = JsonSerializer.Serialize(
                 _data, new JsonSerializerOptions { WriteIndented = true });
+            _data.Token = savedToken;
             File.WriteAllText(AppPaths.SettingsFile, json, Encoding.UTF8);
         }
         catch (Exception ex)

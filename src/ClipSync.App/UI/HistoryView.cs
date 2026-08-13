@@ -336,8 +336,8 @@ public class HistoryView
 
     private static ControlTemplate RoundCornerBtnTemplate()
     {
+        // 修复：去掉 TargetName="bd"，避免 FrameworkElementFactory NameScope 在 Seal 时崩溃。
         var f = new FrameworkElementFactory(typeof(Border));
-        f.SetValue(Border.NameProperty, "bd");
         f.SetValue(Border.CornerRadiusProperty, new CornerRadius(7));
         f.SetValue(Border.BackgroundProperty, new TemplateBindingExtension(Control.BackgroundProperty));
         f.SetValue(Border.PaddingProperty, new TemplateBindingExtension(Control.PaddingProperty));
@@ -348,10 +348,10 @@ public class HistoryView
         f.AppendChild(p);
         var t = new ControlTemplate(typeof(Button)) { VisualTree = f };
         var hover = new Trigger { Property = UIElement.IsMouseOverProperty, Value = true };
-        hover.Setters.Add(new Setter { TargetName = "bd", Property = UIElement.OpacityProperty, Value = 0.9 });
+        hover.Setters.Add(new Setter { Property = UIElement.OpacityProperty, Value = 0.9 });
         t.Triggers.Add(hover);
         var pressed = new Trigger { Property = Button.IsPressedProperty, Value = true };
-        pressed.Setters.Add(new Setter { TargetName = "bd", Property = UIElement.OpacityProperty, Value = 0.75 });
+        pressed.Setters.Add(new Setter { Property = UIElement.OpacityProperty, Value = 0.75 });
         t.Triggers.Add(pressed);
         return t;
     }

@@ -76,4 +76,27 @@ public static class ServerAddress
         }
         return "http://" + s;
     }
+
+    /// <summary>
+    /// 把 http:// / https:// / 纯地址转成 ws:// / wss:// 的 WebSocket 基址。
+    /// ClientWebSocket 必须用 ws/wss 协议，不能直接用 https 拼 /ws。
+    /// </summary>
+    public static string WsBase(string? serverUrl)
+    {
+        var s = (serverUrl ?? "").Trim().TrimEnd('/');
+        if (s.StartsWith("wss://", StringComparison.OrdinalIgnoreCase)
+            || s.StartsWith("ws://", StringComparison.OrdinalIgnoreCase))
+        {
+            return s;
+        }
+        if (s.StartsWith("https://", StringComparison.OrdinalIgnoreCase))
+        {
+            return "wss://" + s["https://".Length..];
+        }
+        if (s.StartsWith("http://", StringComparison.OrdinalIgnoreCase))
+        {
+            return "ws://" + s["http://".Length..];
+        }
+        return "wss://" + s;
+    }
 }

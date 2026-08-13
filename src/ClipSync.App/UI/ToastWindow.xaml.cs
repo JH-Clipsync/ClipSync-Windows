@@ -89,19 +89,18 @@ public partial class ToastWindow : Window
         // 根容器：圆角卡片 + 阴影
         var root = new Border
         {
-            CornerRadius = new CornerRadius(14),
-            Background = new SolidColorBrush(Color.FromArgb(0xF8, 0xFF, 0xFF, 0xFF)),
-            BorderBrush = new SolidColorBrush(Color.FromArgb(0x1A, 0x00, 0x00, 0x00)),
+            CornerRadius = new CornerRadius(16),
+            Background = Brushes.White,
+            BorderBrush = new SolidColorBrush(Color.FromArgb(0x1F, 0x00, 0x00, 0x00)),
             BorderThickness = new Thickness(1),
             Effect = new DropShadowEffect
             {
                 Color = Colors.Black,
-                Opacity = 0.15,
-                BlurRadius = 20,
-                ShadowDepth = 6,
+                Opacity = 0.2,
+                BlurRadius = 24,
+                ShadowDepth = 8,
             },
-            Padding = new Thickness(14, 12, 14, 12),
-            ClipToBounds = true,
+            Padding = new Thickness(16, 14, 16, 14),
         };
 
         var body = new System.Windows.Controls.StackPanel();
@@ -166,17 +165,17 @@ public partial class ToastWindow : Window
         // 主图标：紫色渐变底 + 类型角标（跟 Mac 一致）
         var outer = new Border
         {
-            Width = 34,
-            Height = 34,
-            CornerRadius = new CornerRadius(8),
+            Width = 36,
+            Height = 36,
+            CornerRadius = new CornerRadius(10),
             Background = new LinearGradientBrush
             {
                 StartPoint = new Point(0, 0),
                 EndPoint = new Point(0, 1),
                 GradientStops = new GradientStopCollection
                 {
-                    new(Color.FromArgb(0xFF, 0x81, 0x8C, 0xF1), 0),
-                    new(Color.FromArgb(0xFF, 0x63, 0x66, 0xF1), 1),
+                    new(Color.FromRgb(0x81, 0x7C, 0xF4), 0),
+                    new(Color.FromRgb(0x4F, 0x46, 0xE5), 1),
                 },
             },
             Child = new System.Windows.Controls.Viewbox
@@ -304,8 +303,8 @@ public partial class ToastWindow : Window
 
     private static System.Windows.Controls.ControlTemplate MakeCloseButtonTemplate()
     {
+        // 修复：去掉 TargetName="border"，避免 FrameworkElementFactory NameScope 在 Seal 时崩溃。
         var factory = new FrameworkElementFactory(typeof(Border));
-        factory.SetValue(Border.NameProperty, "border");
         factory.SetValue(Border.CornerRadiusProperty, new CornerRadius(999));
         factory.SetValue(Border.BackgroundProperty, new TemplateBindingExtension(System.Windows.Controls.Control.BackgroundProperty));
         var presenter = new FrameworkElementFactory(typeof(System.Windows.Controls.ContentPresenter));
@@ -326,10 +325,10 @@ public partial class ToastWindow : Window
             Property = System.Windows.UIElement.IsMouseOverProperty,
             Value = true,
         };
+        // 直接改 Button（TemplatedParent）的 Background；Border 用 TemplateBinding 会自动跟随。
         hoverTrigger.Setters.Add(new Setter
         {
-            TargetName = "border",
-            Property = Border.BackgroundProperty,
+            Property = System.Windows.Controls.Control.BackgroundProperty,
             Value = new SolidColorBrush(Color.FromArgb(0x22, 0x00, 0x00, 0x00)),
         });
         template.Triggers.Add(hoverTrigger);
@@ -383,7 +382,7 @@ public partial class ToastWindow : Window
             Orientation = System.Windows.Controls.Orientation.Horizontal,
         };
 
-        // 主按钮样式（紫色胶囊）
+        // 主按钮样式（圆角矩形 8px）
         static System.Windows.Controls.Button MakePill(string text, bool primary, Action<object, RoutedEventArgs> onClick)
         {
             var btn = new System.Windows.Controls.Button
@@ -391,19 +390,25 @@ public partial class ToastWindow : Window
                 Content = text,
                 FontSize = 12,
                 FontWeight = primary ? FontWeights.SemiBold : FontWeights.Medium,
-                Padding = new Thickness(12, 5, 12, 5),
-                Margin = new Thickness(0, 0, 6, 0),
+                Padding = new Thickness(14, 6, 14, 6),
+                Margin = new Thickness(0, 0, 8, 0),
                 Cursor = System.Windows.Input.Cursors.Hand,
                 Background = primary
-                    ? new SolidColorBrush(Color.FromRgb(0x63, 0x66, 0xF1))
-                    : new SolidColorBrush(Color.FromArgb(0xFF, 0xEE, 0xF2, 0xFF)),
+                    ? new SolidColorBrush(Color.FromRgb(0x4F, 0x46, 0xE5))
+                    : new SolidColorBrush(Color.FromRgb(0xF3, 0xF4, 0xF6)),
                 Foreground = primary
                     ? Brushes.White
-                    : new SolidColorBrush(Color.FromRgb(0x63, 0x66, 0xF1)),
+                    : new SolidColorBrush(Color.FromRgb(0x37, 0x41, 0x51)),
                 BorderThickness = new Thickness(0),
+                MinHeight = 30,
+                // 按内容自适应宽度，避免长文案（如"复制 888101"）被截断
+                HorizontalAlignment = HorizontalAlignment.Left,
+                HorizontalContentAlignment = HorizontalAlignment.Center,
+                VerticalContentAlignment = VerticalAlignment.Center,
+                UseLayoutRounding = true,
             };
             btn.Click += new RoutedEventHandler(onClick);
-            btn.Template = PillButtonTemplate();
+            btn.Template = RoundedButtonTemplate();
             return btn;
         }
 
@@ -435,10 +440,60 @@ public partial class ToastWindow : Window
         return row;
     }
 
+    private static System.Windows.Controls.ControlTemplate RoundedButtonTemplate()
+    {
+        // 标准圆角按钮模板：
+        // - 根 Border 自动 Stretch 填满 Button 可视区域
+        // - 绑定 Background/Padding 到 Button 的同名属性
+        // - ContentPresenter 绑定 HorizontalContentAlignment/VerticalContentAlignment
+        //   让 Button 上设置的内容对齐生效
+        // 不要在根 Border 上绑定 HorizontalAlignment/VerticalAlignment，
+        // 那会导致模板根元素不填充、按钮测量异常。
+        var factory = new FrameworkElementFactory(typeof(Border));
+        factory.SetValue(Border.CornerRadiusProperty, new CornerRadius(8));
+        factory.SetValue(Border.BackgroundProperty,
+            new TemplateBindingExtension(System.Windows.Controls.Control.BackgroundProperty));
+        factory.SetValue(Border.PaddingProperty,
+            new TemplateBindingExtension(System.Windows.Controls.Control.PaddingProperty));
+        factory.SetValue(FrameworkElement.SnapsToDevicePixelsProperty, true);
+
+        var presenter = new FrameworkElementFactory(typeof(System.Windows.Controls.ContentPresenter));
+        presenter.SetValue(
+            System.Windows.Controls.ContentPresenter.HorizontalAlignmentProperty,
+            new TemplateBindingExtension(System.Windows.Controls.Control.HorizontalContentAlignmentProperty));
+        presenter.SetValue(
+            System.Windows.Controls.ContentPresenter.VerticalAlignmentProperty,
+            new TemplateBindingExtension(System.Windows.Controls.Control.VerticalContentAlignmentProperty));
+        presenter.SetValue(
+            System.Windows.Controls.ContentPresenter.RecognizesAccessKeyProperty, true);
+        presenter.SetValue(
+            System.Windows.Controls.ContentPresenter.MarginProperty,
+            new System.Windows.Thickness(0));
+        factory.AppendChild(presenter);
+
+        var template = new System.Windows.Controls.ControlTemplate(typeof(System.Windows.Controls.Button))
+        {
+            VisualTree = factory,
+        };
+        var hover = new Trigger
+        {
+            Property = System.Windows.UIElement.IsMouseOverProperty, Value = true,
+        };
+        hover.Setters.Add(new Setter { Property = UIElement.OpacityProperty, Value = 0.88 });
+        template.Triggers.Add(hover);
+        var pressed = new Trigger
+        {
+            Property = System.Windows.Controls.Button.IsPressedProperty, Value = true,
+        };
+        pressed.Setters.Add(new Setter { Property = UIElement.OpacityProperty, Value = 0.75 });
+        template.Triggers.Add(pressed);
+        return template;
+    }
+
     private static System.Windows.Controls.ControlTemplate PillButtonTemplate()
     {
+        // 修复：去掉 TargetName="bd"，避免 FrameworkElementFactory NameScope 在 Seal 时崩溃。
         var factory = new FrameworkElementFactory(typeof(Border));
-        factory.SetValue(Border.NameProperty, "bd");
         factory.SetValue(Border.CornerRadiusProperty, new CornerRadius(999));
         factory.SetValue(Border.BackgroundProperty,
             new TemplateBindingExtension(System.Windows.Controls.Control.BackgroundProperty));
@@ -459,23 +514,13 @@ public partial class ToastWindow : Window
         {
             Property = System.Windows.UIElement.IsMouseOverProperty, Value = true,
         };
-        hover.Setters.Add(new Setter
-        {
-            TargetName = "bd",
-            Property = UIElement.OpacityProperty,
-            Value = 0.9,
-        });
+        hover.Setters.Add(new Setter { Property = UIElement.OpacityProperty, Value = 0.9 });
         template.Triggers.Add(hover);
         var pressed = new Trigger
         {
             Property = System.Windows.Controls.Button.IsPressedProperty, Value = true,
         };
-        pressed.Setters.Add(new Setter
-        {
-            TargetName = "bd",
-            Property = UIElement.OpacityProperty,
-            Value = 0.75,
-        });
+        pressed.Setters.Add(new Setter { Property = UIElement.OpacityProperty, Value = 0.75 });
         template.Triggers.Add(pressed);
         return template;
     }

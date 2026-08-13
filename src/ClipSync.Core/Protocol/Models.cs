@@ -51,6 +51,8 @@ public static class MessageType
     public const string NotifyMobile = "notify_mobile";
     public const string NotifyAll = "notify_all";
     public const string Clipboard = "clipboard";
+    /// <summary>服务端主动踢下线（密码被管理员重置/账号禁用）。收到后立即断连并禁止自动重连。</summary>
+    public const string ServerKick = "server_kick";
 }
 
 /// <summary>业务子类型（payload.kind）。</summary>

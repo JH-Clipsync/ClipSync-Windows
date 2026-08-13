@@ -16,6 +16,13 @@ publish/
 artifacts/
 dist/
 stage/
+installer/Output/
+installer/assets/_icon_check/
+
+## Local test / throwaway projects
+toasttest/
+*_temp/
+*.tmp
 
 ## OS files
 .DS_Store

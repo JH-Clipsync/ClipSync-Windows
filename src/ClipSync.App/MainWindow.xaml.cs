@@ -18,7 +18,7 @@ using ClipSync.Core.Storage;
 // ============================================================
 public partial class MainWindow : Window
 {
-    private enum NavItem { Home, Sms, Clipboard }
+    private enum NavItem { Home, Sms, Clipboard, Settings }
 
     private readonly ListBox _navList;
     private readonly Grid _root;
@@ -27,6 +27,7 @@ public partial class MainWindow : Window
     private readonly HomeView _homeView;
     private readonly HistoryView _smsView;
     private readonly HistoryView _clipboardView;
+    private readonly SettingsView _settingsView;
 
     public MainWindow()
     {
@@ -34,6 +35,8 @@ public partial class MainWindow : Window
 
         Title = "ClipSync";
         Background = new SolidColorBrush(Color.FromRgb(0xF7, 0xF7, 0xF8));
+        Icon = App.GetWindowIcon();
+        ShowInTaskbar = true;
 
         // 根：左列 200 导航 + 右列 内容
         _root = new Grid();
@@ -56,6 +59,8 @@ public partial class MainWindow : Window
         { Height = GridLength.Auto });
         sidePadding.RowDefinitions.Add(new RowDefinition
         { Height = new GridLength(1, GridUnitType.Star) });
+        sidePadding.RowDefinitions.Add(new RowDefinition
+        { Height = GridLength.Auto });
 
         // 左侧标题
         var appTitle = new TextBlock
@@ -82,6 +87,35 @@ public partial class MainWindow : Window
         Grid.SetRow(_navList, 1);
         sidePadding.Children.Add(_navList);
 
+        // 底部设置按钮（点击后在内嵌区域打开设置页，不再弹窗）
+        var settingsBtn = new Button
+        {
+            Content = "⚙  设置",
+            FontSize = 13,
+            FontWeight = FontWeights.Medium,
+            HorizontalContentAlignment = HorizontalAlignment.Left,
+            Padding = new Thickness(10, 8, 10, 8),
+            Margin = new Thickness(0, 4, 0, 0),
+            Background = Brushes.Transparent,
+            BorderThickness = new Thickness(0),
+            Foreground = new SolidColorBrush(Color.FromRgb(0x6B, 0x72, 0x80)),
+            Cursor = System.Windows.Input.Cursors.Hand,
+        };
+        settingsBtn.Click += (_, _) =>
+        {
+            // 选中侧边栏的"设置"项，Navigate 会切到 SettingsView
+            for (var i = 0; i < _navList.Items.Count; i++)
+            {
+                if (_navList.Items[i] is ListBoxItem li && li.Tag is NavItem n && n == NavItem.Settings)
+                {
+                    _navList.SelectedIndex = i;
+                    break;
+                }
+            }
+        };
+        Grid.SetRow(settingsBtn, 2);
+        sidePadding.Children.Add(settingsBtn);
+
         sideBar.Child = sidePadding;
         Grid.SetColumn(sideBar, 0);
         _root.Children.Add(sideBar);
@@ -104,19 +138,24 @@ public partial class MainWindow : Window
 
         Content = _root;
 
-        // 预创建三个视图，各持同一个数据源的引用
+        // 预创建视图
         _homeView = new HomeView(this);
         _smsView = new HistoryView(HistoryStore.Filter.Sms);
         _clipboardView = new HistoryView(HistoryStore.Filter.Clipboard);
+        _settingsView = new SettingsView();
 
         PopulateNav();
 
-        // 监听设置：剪贴板自动同步变更时 Home 里的开关同步
+        // 监听设置变更（设置页保存后，主页状态卡需要同步）
         SettingsStore.Shared.PropertyChanged += (_, e) =>
         {
-            if (e.PropertyName == nameof(SettingsStore.AutoSyncClipboard))
+            if (e.PropertyName is nameof(SettingsStore.AutoSyncClipboard)
+                or nameof(SettingsStore.ServerUrl)
+                or nameof(SettingsStore.Username)
+                or nameof(SettingsStore.Password)
+                or nameof(SettingsStore.Token))
             {
-                _homeView.RefreshClipboardToggle();
+                _homeView.Refresh();
             }
         };
 
@@ -133,9 +172,11 @@ public partial class MainWindow : Window
         AddNavItem("🏠  主页", NavItem.Home, isSelected: true);
         AddNavItem("💬  短信", NavItem.Sms);
         AddNavItem("📋  剪贴板", NavItem.Clipboard);
+        // 设置入口放在侧边栏底部按钮，不占导航列表
+        AddNavItem("⚙  设置", NavItem.Settings, hidden: true);
     }
 
-    private void AddNavItem(string label, NavItem tag, bool isSelected = false)
+    private void AddNavItem(string label, NavItem tag, bool isSelected = false, bool hidden = false)
     {
         var item = new ListBoxItem
         {
@@ -147,6 +188,7 @@ public partial class MainWindow : Window
             Background = Brushes.Transparent,
             BorderThickness = new Thickness(0),
             IsSelected = isSelected,
+            Visibility = hidden ? Visibility.Collapsed : Visibility.Visible,
         };
         // 自定义选中样式
         item.SetResourceReference(
@@ -173,6 +215,10 @@ public partial class MainWindow : Window
                 _contentFrame.Content = _clipboardView.Root;
                 _clipboardView.Refresh();
                 break;
+            case NavItem.Settings:
+                _contentFrame.Content = _settingsView.Root;
+                _settingsView.Refresh();
+                break;
         }
     }
 
@@ -181,6 +227,10 @@ public partial class MainWindow : Window
         if (SettingsStore.Shared.MinimizeToTrayOnClose)
         {
             e.Cancel = true;
+            // 如果当前处于最小化状态，先恢复正常再 Hide，否则某些 Windows 版本下
+            // 隐藏最小化窗口会导致任务栏按钮消失而托盘图标也一并失效。
+            if (WindowState == WindowState.Minimized)
+                WindowState = WindowState.Normal;
             Hide();
         }
         else
@@ -193,4 +243,20 @@ public partial class MainWindow : Window
     // === HomeView 与 HistoryView 需要的导航方法 ===
     public void NavigateToSms() => _navList.SelectedIndex = 1;
     public void NavigateToClipboard() => _navList.SelectedIndex = 2;
+
+    /// <summary>跳转到设置页（选中隐藏的设置导航项）。</summary>
+    public void NavigateToSettings()
+    {
+        for (var i = 0; i < _navList.Items.Count; i++)
+        {
+            if (_navList.Items[i] is ListBoxItem li && li.Tag is NavItem n && n == NavItem.Settings)
+            {
+                _navList.SelectedIndex = i;
+                break;
+            }
+        }
+    }
+
+    /// <summary>回到主页（选中第一个导航项）。</summary>
+    public void NavigateHome() => _navList.SelectedIndex = 0;
 }

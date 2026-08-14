@@ -17,7 +17,7 @@
 
 #define MyAppName "ClipSync"
 #define MyAppPublisher "ClipSync"
-#define MyAppVersion "2026.8.14.3"      ; CI 构建时请替换为 Directory.Build.props 中的 Version
+#define MyAppVersion "2026.8.14.4"      ; CI 构建时请替换为 Directory.Build.props 中的 Version
 #define MyAppExeName "ClipSync.App.exe"
 
 ; 架构参数：通过 /DArch=x64 或 /DArch=arm64 传入（默认 x64）
@@ -32,12 +32,20 @@
   #define ArchInstallMode "x64compatible"
 #endif
 ; 源文件目录：
-;   本地编译默认走 bin\Release\net8.0-windows\win-<arch>\publish
-;   CI 里通过 /DSrcDir=publish\x64\ 或 publish\arm64\ 指向 dotnet publish -o 输出目录
+;   本地编译默认走 installer\..\src\ClipSync.App\bin\Release\net8.0-windows\win-<arch>\publish
+;   CI 里通过 /DSrcDir=publish\x64\* 或 publish\arm64\* 指向 dotnet publish -o 输出目录
+; 注意：Inno Setup 的 Source 路径是相对于**本 .iss 文件所在目录**解析的，
+;       与 ISCC 的当前工作目录无关。为了让 CI（工作目录=仓库根）也能用，
+;       这里把所有相对路径统一转成绝对路径。
 #ifndef SrcDir
   #define SrcDir "..\src\ClipSync.App\bin\Release\net8.0-windows\win-" + Arch + "\publish\*"
 #endif
-#define PubSrcDir SrcDir
+; 如果传入的是相对路径，就用 SourcePath（本 .iss 文件所在目录）拼出绝对路径
+#if Pos(":", SrcDir) == 0
+  #define PubSrcDir SourcePath + SrcDir
+#else
+  #define PubSrcDir SrcDir
+#endif
 
 [Setup]
 AppId={{E5534D78-9B0D-4A84-8F6D-7E55811AF96B}

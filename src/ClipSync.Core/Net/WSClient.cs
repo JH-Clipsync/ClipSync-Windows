@@ -279,6 +279,19 @@ public sealed class WSClient : INotifyPropertyChanged
         }
     }
 
+    /// <summary>
+    /// 把本机同步开关拼成上报字符串：
+    ///   clip_up  = 剪贴板变化自动上行（AutoSyncClipboard）
+    ///   auto_put = 收到远端剪贴板自动写入本机（Windows 端默认开启）
+    /// </summary>
+    private static string BuildCaps(SettingsStore settings)
+    {
+        var parts = new List<string>();
+        if (settings?.AutoSyncClipboard == true) parts.Add("clip_up");
+        parts.Add("auto_put");
+        return string.Join(',', parts);
+    }
+
     /// <summary>启动连接。相同 server + token 且已在运行时直接跳过（防抖）。</summary>
     public void Start(string server, string token, SettingsStore settings)
     {
@@ -303,7 +316,11 @@ public sealed class WSClient : INotifyPropertyChanged
         // 但 ClientWebSocket 必须用 wss:// 协议，因此需要转成 WebSocket 基址。
         var wsServer = ServerAddress.WsBase(server);
         var url = $"{wsServer}/ws?token={Uri.EscapeDataString(token)}" +
-                  $"&device={Uri.EscapeDataString(DeviceId)}&role=pc";
+                  $"&device={Uri.EscapeDataString(DeviceId)}&role=pc&platform=windows";
+        // 上报本机同步能力/开关，用于在线列表展示
+        var caps = BuildCaps(settings);
+        if (!string.IsNullOrEmpty(caps))
+            url += $"&caps={Uri.EscapeDataString(caps)}";
         if (!Uri.TryCreate(url, UriKind.Absolute, out var uri))
         {
             SetAuthError($"服务器地址不合法：{server}");

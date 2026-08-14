@@ -1,3 +1,4 @@
+using System.Collections.Generic;
 using System.Text.Json;
 using System.Text.Json.Serialization;
 
@@ -62,16 +63,37 @@ public sealed class OnlineDevice
 {
     [JsonPropertyName("device_id")] public string DeviceId { get; set; } = "";
     [JsonPropertyName("role")] public string Role { get; set; } = "";
+    [JsonPropertyName("platform")] public string Platform { get; set; } = "";
     [JsonPropertyName("ip")] public string Ip { get; set; } = "";
     [JsonPropertyName("online_at")] public long OnlineAt { get; set; }
     [JsonPropertyName("self")] public bool IsSelf { get; set; }
+    [JsonPropertyName("caps")] public Dictionary<string, bool> Caps { get; set; } = new();
 
-    public string RoleLabel => Role switch
+    public string PlatformLabel => Platform?.ToLowerInvariant() switch
     {
-        "mobile" => "手机",
-        "pc" => "电脑",
-        _ => Role,
+        "mac" => "macOS",
+        "windows" => "Windows",
+        "linux" => "Linux",
+        "android" => "Android",
+        "ios" => "iOS",
+        _ => Role == "mobile" ? "手机" : "电脑",
     };
+
+    /// <summary>去掉前缀后的短设备 ID（取前 8 位）。</summary>
+    public string ShortId
+    {
+        get
+        {
+            var id = DeviceId ?? "";
+            var idx = id.IndexOf('-');
+            var body = idx >= 0 ? id[(idx + 1)..] : id;
+            return body.Length <= 8 ? body : body[..8];
+        }
+    }
+
+    public bool ClipUp => Caps != null && Caps.TryGetValue("clip_up", out var v) && v;
+    public bool SmsIn => Caps != null && Caps.TryGetValue("sms_in", out var v) && v;
+    public bool AutoPut => Caps != null && Caps.TryGetValue("auto_put", out var v) && v;
 
     public DateTime OnlineTime =>
         (OnlineAt > 1_000_000_000_000

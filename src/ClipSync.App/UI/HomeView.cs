@@ -454,7 +454,10 @@ public class HomeView
 
     private static FrameworkElement BuildOnlineRow(OnlineDevice d)
     {
-        var row = new DockPanel { LastChildFill = true, Margin = new Thickness(0, 6, 0, 6) };
+        var outer = new StackPanel { Margin = new Thickness(0, 6, 0, 6) };
+
+        // 顶行：圆点 + 平台 + 本机标签 + IP·ID（右靠）
+        var row = new DockPanel { LastChildFill = true };
 
         var dot = new Border
         {
@@ -468,17 +471,17 @@ public class HomeView
         DockPanel.SetDock(dot, Dock.Left);
         row.Children.Add(dot);
 
-        var ip = new TextBlock
+        var sub = new TextBlock
         {
-            Text = d.Ip,
+            Text = $"{d.Ip} · {d.ShortId}",
             FontSize = 11,
             FontFamily = new FontFamily("Consolas, Courier New"),
             Foreground = new SolidColorBrush(Color.FromRgb(0x6B, 0x72, 0x80)),
             VerticalAlignment = VerticalAlignment.Center,
             HorizontalAlignment = HorizontalAlignment.Right,
         };
-        DockPanel.SetDock(ip, Dock.Right);
-        row.Children.Add(ip);
+        DockPanel.SetDock(sub, Dock.Right);
+        row.Children.Add(sub);
 
         var namePanel = new StackPanel
         {
@@ -487,7 +490,7 @@ public class HomeView
         };
         namePanel.Children.Add(new TextBlock
         {
-            Text = d.RoleLabel,
+            Text = d.PlatformLabel,
             FontSize = 13,
             Foreground = Brushes.Black,
             VerticalAlignment = VerticalAlignment.Center,
@@ -510,10 +513,36 @@ public class HomeView
                 },
             });
         }
-        // namePanel 作为最后一个子元素，LastChildFill=true 让它填满中间剩余空间
         row.Children.Add(namePanel);
+        outer.Children.Add(row);
 
-        return row;
+        // 第二行：同步开关标签
+        var caps = new WrapPanel { Margin = new Thickness(18, 5, 0, 0) };
+        caps.Children.Add(CapTag("剪贴板", d.ClipUp));
+        caps.Children.Add(CapTag("短信", d.SmsIn));
+        caps.Children.Add(CapTag("自动接收", d.AutoPut));
+        outer.Children.Add(caps);
+
+        return outer;
+    }
+
+    private static FrameworkElement CapTag(string text, bool on)
+    {
+        return new Border
+        {
+            CornerRadius = new CornerRadius(999),
+            Background = new SolidColorBrush(
+                on ? Color.FromArgb(0x26, 0x10, 0xB9, 0x81) : Color.FromArgb(0x14, 0x00, 0x00, 0x00)),
+            Padding = new Thickness(8, 2, 8, 2),
+            Margin = new Thickness(0, 0, 6, 0),
+            Child = new TextBlock
+            {
+                Text = text,
+                FontSize = 10,
+                Foreground = new SolidColorBrush(
+                    on ? Color.FromRgb(0x10, 0xB9, 0x81) : Color.FromRgb(0x6B, 0x72, 0x80)),
+            },
+        };
     }
 
     // ============================================================

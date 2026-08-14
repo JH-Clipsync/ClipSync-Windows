@@ -17,7 +17,7 @@
 
 #define MyAppName "ClipSync"
 #define MyAppPublisher "ClipSync"
-#define MyAppVersion "2026.8.14.1"      ; CI 构建时请替换为 Directory.Build.props 中的 Version
+#define MyAppVersion "2026.8.14.3"      ; CI 构建时请替换为 Directory.Build.props 中的 Version
 #define MyAppExeName "ClipSync.App.exe"
 
 ; 架构参数：通过 /DArch=x64 或 /DArch=arm64 传入（默认 x64）
@@ -31,7 +31,13 @@
 #else
   #define ArchInstallMode "x64compatible"
 #endif
-#define PubSrcDir "..\src\ClipSync.App\bin\Release\net8.0-windows\win-" + Arch + "\publish\*"
+; 源文件目录：
+;   本地编译默认走 bin\Release\net8.0-windows\win-<arch>\publish
+;   CI 里通过 /DSrcDir=publish\x64\ 或 publish\arm64\ 指向 dotnet publish -o 输出目录
+#ifndef SrcDir
+  #define SrcDir "..\src\ClipSync.App\bin\Release\net8.0-windows\win-" + Arch + "\publish\*"
+#endif
+#define PubSrcDir SrcDir
 
 [Setup]
 AppId={{E5534D78-9B0D-4A84-8F6D-7E55811AF96B}

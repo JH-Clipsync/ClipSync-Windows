@@ -17,7 +17,7 @@
 
 #define MyAppName "ClipSync"
 #define MyAppPublisher "ClipSync"
-#define MyAppVersion "2026.8.14.5"      ; CI 构建时请替换为 Directory.Build.props 中的 Version
+#define MyAppVersion "2026.8.14.6"      ; CI 构建时请替换为 Directory.Build.props 中的 Version
 #define MyAppExeName "ClipSync.App.exe"
 
 ; 架构参数：通过 /DArch=x64 或 /DArch=arm64 传入（默认 x64）

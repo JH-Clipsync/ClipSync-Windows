@@ -53,6 +53,36 @@ public static class MessageType
     public const string Clipboard = "clipboard";
     /// <summary>服务端主动踢下线（密码被管理员重置/账号禁用）。收到后立即断连并禁止自动重连。</summary>
     public const string ServerKick = "server_kick";
+    /// <summary>在线设备列表变更（服务端在客户端上下线时下发）。</summary>
+    public const string Presence = "presence";
+}
+
+/// <summary>在线设备（服务端 presence 消息里的一台设备）。</summary>
+public sealed class OnlineDevice
+{
+    [JsonPropertyName("device_id")] public string DeviceId { get; set; } = "";
+    [JsonPropertyName("role")] public string Role { get; set; } = "";
+    [JsonPropertyName("ip")] public string Ip { get; set; } = "";
+    [JsonPropertyName("online_at")] public long OnlineAt { get; set; }
+    [JsonPropertyName("self")] public bool IsSelf { get; set; }
+
+    public string RoleLabel => Role switch
+    {
+        "mobile" => "手机",
+        "pc" => "电脑",
+        _ => Role,
+    };
+
+    public DateTime OnlineTime =>
+        (OnlineAt > 1_000_000_000_000
+            ? DateTimeOffset.FromUnixTimeMilliseconds(OnlineAt)
+            : DateTimeOffset.FromUnixTimeSeconds(OnlineAt)).ToLocalTime().DateTime;
+}
+
+/// <summary>presence 消息的 payload。</summary>
+public sealed class PresencePayload
+{
+    [JsonPropertyName("devices")] public List<OnlineDevice> Devices { get; set; } = new();
 }
 
 /// <summary>业务子类型（payload.kind）。</summary>

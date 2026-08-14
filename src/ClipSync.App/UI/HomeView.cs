@@ -39,6 +39,10 @@ public class HomeView
     private readonly TextBlock _clipCount;
     private readonly Panel _latestContainer;
 
+    private readonly Border _onlineCard;
+    private readonly TextBlock _onlineCount;
+    private readonly StackPanel _onlineList;
+
     private readonly Border _onboardingBanner;
 
     public HomeView(MainWindow window)
@@ -67,6 +71,11 @@ public class HomeView
         // 1) 状态卡
         (_statusCard, _statusText, _serverHint, _authErrorPanel, _authError, _authErrorGoBtn, _connectBtn) = BuildStatusCard();
         col.Children.Add(_statusCard);
+        AddSpacer(col, 16);
+
+        // 1.5) 在线设备卡
+        (_onlineCard, _onlineCount, _onlineList) = BuildOnlineCard();
+        col.Children.Add(_onlineCard);
         AddSpacer(col, 16);
 
         // 2) 信息区（短信/剪贴板计数 + 最近消息）
@@ -101,10 +110,13 @@ public class HomeView
 
         // 实时刷新：WS 状态 / 历史变化
         WSClient.Shared.PropertyChanged += Ws_PropertyChanged;
+        WSClient.Shared.OnlineDevices.ListChanged += (_, _) =>
+            System.Windows.Application.Current?.Dispatcher.BeginInvoke(UpdateOnlineCard);
         HistoryStore.Shared.Changed += RefreshInfo;
         SettingsStore.Shared.PropertyChanged += Settings_PropertyChanged;
 
         Refresh();
+        UpdateOnlineCard();
     }
 
     public void Refresh()
@@ -332,6 +344,176 @@ public class HomeView
         _authError.Text = message;
         _authErrorPanel.Visibility = Visibility.Visible;
         _authErrorGoBtn.Visibility = showGoSettings ? Visibility.Visible : Visibility.Collapsed;
+    }
+
+    // ============================================================
+    // 在线设备卡
+    // ============================================================
+    private (Border card, TextBlock count, StackPanel list) BuildOnlineCard()
+    {
+        var card = new Border
+        {
+            CornerRadius = new CornerRadius(12),
+            Background = new SolidColorBrush(Color.FromArgb(0x0F, 0x00, 0x00, 0x00)),
+            Padding = new Thickness(14),
+        };
+        var body = new StackPanel();
+
+        // 标题行：左侧色条 + 标题，右侧计数
+        var header = new Grid();
+        header.ColumnDefinitions.Add(new ColumnDefinition { Width = GridLength.Auto });
+        header.ColumnDefinitions.Add(new ColumnDefinition { Width = new GridLength(1, GridUnitType.Star) });
+        header.ColumnDefinitions.Add(new ColumnDefinition { Width = GridLength.Auto });
+
+        var bar = new Border
+        {
+            Width = 4,
+            Height = 16,
+            CornerRadius = new CornerRadius(2),
+            Background = new SolidColorBrush(Colors.Teal),
+            Margin = new Thickness(0, 3, 8, 0),
+        };
+        Grid.SetColumn(bar, 0);
+        header.Children.Add(bar);
+
+        var title = new TextBlock
+        {
+            Text = "在线设备",
+            FontSize = 13,
+            FontWeight = FontWeights.SemiBold,
+            VerticalAlignment = VerticalAlignment.Center,
+        };
+        Grid.SetColumn(title, 1);
+        header.Children.Add(title);
+
+        var count = new TextBlock
+        {
+            FontSize = 11,
+            FontWeight = FontWeights.SemiBold,
+            Foreground = new SolidColorBrush(Color.FromRgb(0x10, 0xB9, 0x81)),
+            Background = new SolidColorBrush(Color.FromArgb(0x33, 0x10, 0xB9, 0x81)),
+            Padding = new Thickness(8, 2, 8, 2),
+            VerticalAlignment = VerticalAlignment.Center,
+        };
+        Grid.SetColumn(count, 2);
+        header.Children.Add(count);
+
+        body.Children.Add(header);
+
+        var list = new StackPanel { Orientation = Orientation.Vertical };
+        body.Children.Add(list);
+
+        card.Child = body;
+        return (card, count, list);
+    }
+
+    private void UpdateOnlineCard()
+    {
+        var st = WSClient.Shared.State;
+        _onlineList.Children.Clear();
+
+        if (st != ConnectionState.Connected)
+        {
+            _onlineCount.Text = "离线";
+            _onlineCount.Foreground = new SolidColorBrush(Color.FromRgb(0x6B, 0x72, 0x80));
+            if (_onlineCount.Background is SolidColorBrush b)
+                b.Color = Color.FromArgb(0x14, 0x00, 0x00, 0x00);
+            _onlineList.Children.Add(HintText("连接服务器后显示在线设备"));
+            return;
+        }
+
+        var devices = WSClient.Shared.OnlineDevices;
+        if (devices.Count == 0)
+        {
+            _onlineCount.Text = "获取中…";
+            _onlineCount.Foreground = new SolidColorBrush(Color.FromRgb(0x6B, 0x72, 0x80));
+            if (_onlineCount.Background is SolidColorBrush b2)
+                b2.Color = Color.FromArgb(0x14, 0x00, 0x00, 0x00);
+            _onlineList.Children.Add(HintText("正在获取在线设备…"));
+            return;
+        }
+
+        _onlineCount.Text = $"{devices.Count} 台在线";
+        _onlineCount.Foreground = new SolidColorBrush(Color.FromRgb(0x10, 0xB9, 0x81));
+        if (_onlineCount.Background is SolidColorBrush b3)
+            b3.Color = Color.FromArgb(0x33, 0x10, 0xB9, 0x81);
+
+        foreach (var d in devices)
+        {
+            _onlineList.Children.Add(BuildOnlineRow(d));
+        }
+    }
+
+    private static FrameworkElement HintText(string text) => new TextBlock
+    {
+        Text = text,
+        FontSize = 12,
+        Foreground = new SolidColorBrush(Color.FromRgb(0x6B, 0x72, 0x80)),
+        Margin = new Thickness(0, 4, 0, 2),
+    };
+
+    private static FrameworkElement BuildOnlineRow(OnlineDevice d)
+    {
+        var row = new DockPanel { LastChildFill = true, Margin = new Thickness(0, 6, 0, 6) };
+
+        var dot = new Border
+        {
+            Width = 8,
+            Height = 8,
+            CornerRadius = new CornerRadius(4),
+            Background = new SolidColorBrush(Color.FromRgb(0x10, 0xB9, 0x81)),
+            VerticalAlignment = VerticalAlignment.Center,
+            Margin = new Thickness(0, 0, 10, 0),
+        };
+        DockPanel.SetDock(dot, Dock.Left);
+        row.Children.Add(dot);
+
+        var ip = new TextBlock
+        {
+            Text = d.Ip,
+            FontSize = 11,
+            FontFamily = new FontFamily("Consolas, Courier New"),
+            Foreground = new SolidColorBrush(Color.FromRgb(0x6B, 0x72, 0x80)),
+            VerticalAlignment = VerticalAlignment.Center,
+            HorizontalAlignment = HorizontalAlignment.Right,
+        };
+        DockPanel.SetDock(ip, Dock.Right);
+        row.Children.Add(ip);
+
+        var namePanel = new StackPanel
+        {
+            Orientation = Orientation.Horizontal,
+            VerticalAlignment = VerticalAlignment.Center,
+        };
+        namePanel.Children.Add(new TextBlock
+        {
+            Text = d.RoleLabel,
+            FontSize = 13,
+            Foreground = Brushes.Black,
+            VerticalAlignment = VerticalAlignment.Center,
+        });
+        if (d.IsSelf)
+        {
+            namePanel.Children.Add(new Border
+            {
+                CornerRadius = new CornerRadius(999),
+                Background = new SolidColorBrush(Color.FromArgb(0x1A, 0x63, 0x66, 0xF1)),
+                Padding = new Thickness(6, 1, 6, 1),
+                Margin = new Thickness(8, 0, 0, 0),
+                VerticalAlignment = VerticalAlignment.Center,
+                Child = new TextBlock
+                {
+                    Text = "本机",
+                    FontSize = 10,
+                    FontWeight = FontWeights.Bold,
+                    Foreground = new SolidColorBrush(Color.FromRgb(0x63, 0x66, 0xF1)),
+                },
+            });
+        }
+        // namePanel 作为最后一个子元素，LastChildFill=true 让它填满中间剩余空间
+        row.Children.Add(namePanel);
+
+        return row;
     }
 
     // ============================================================

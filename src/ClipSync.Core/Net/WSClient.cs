@@ -2,6 +2,7 @@ using System.ComponentModel;
 using System.Net.WebSockets;
 using System.Net.Sockets;
 using System.Text;
+using System.Text.Json;
 
 namespace ClipSync.Core.Net;
 
@@ -90,6 +91,9 @@ public sealed class WSClient : INotifyPropertyChanged
     /// <summary>本机设备 ID：首次生成后存进 Settings，之后一直复用。
     /// 不能每次启动都换：服务端按 device_id 在 Redis 里登记在线设备。</summary>
     public string DeviceId { get; }
+
+    /// <summary>当前账号下的在线设备列表（服务端 presence 推送实时更新）。</summary>
+    public BindingList<OnlineDevice> OnlineDevices { get; } = new();
 
     private readonly SemaphoreSlim _sendGate = new(1, 1);
     private readonly object _lifecycleGate = new();
@@ -388,7 +392,10 @@ public sealed class WSClient : INotifyPropertyChanged
         socket?.Dispose();
         cts?.Dispose();
 
-        _dispatch(() => State = ConnectionState.Disconnected);
+        _dispatch(() => {
+            State = ConnectionState.Disconnected;
+            OnlineDevices.Clear();
+        });
     }
 
     private void SetAuthError(string message) => _dispatch(() =>
@@ -641,6 +648,13 @@ public sealed class WSClient : INotifyPropertyChanged
     /// <summary>处理一条收到的原始 JSON 文本。</summary>
     private void Handle(string text, SettingsStore settings)
     {
+        // presence 消息的 payload 是 {"devices":[...]}，与业务消息的 MessagePayload 结构不同，
+        // 在整体反序列化成 SyncMessage 前先单独解析并更新在线设备列表。
+        if (TryHandlePresence(text))
+        {
+            return;
+        }
+
         var msg = ProtocolJson.Deserialize<SyncMessage>(text);
         if (msg is null)
         {
@@ -719,6 +733,35 @@ public sealed class WSClient : INotifyPropertyChanged
             LastMessage = resolved;
             MessageReceived?.Invoke(resolved);
         });
+    }
+
+    /// <summary>若 JSON 是服务端下发的 presence 消息，更新在线设备列表并返回 true。</summary>
+    private bool TryHandlePresence(string text)
+    {
+        try
+        {
+            using var doc = JsonDocument.Parse(text);
+            var root = doc.RootElement;
+            if (root.ValueKind != JsonValueKind.Object) return false;
+            if (!root.TryGetProperty("type", out var typeEl)) return false;
+            if (typeEl.GetString() != MessageType.Presence) return false;
+            if (!root.TryGetProperty("payload", out var payloadEl)) return false;
+
+            var payload = JsonSerializer.Deserialize<PresencePayload>(payloadEl.GetRawText(), ProtocolJson.Options);
+            var devices = payload?.Devices ?? new List<OnlineDevice>();
+            _dispatch(() =>
+            {
+                OnlineDevices.Clear();
+                foreach (var d in devices) OnlineDevices.Add(d);
+            });
+            Log.Info($"[WS] 👥 在线设备更新：{devices.Count} 台");
+            return true;
+        }
+        catch (Exception ex)
+        {
+            Log.Warn($"[WS] presence 解析失败: {ex.Message}");
+            return false;
+        }
     }
 
     /// <summary>token 失效时尝试自动重新鉴权（握手错误含 401/Unauthorized）。

@@ -48,6 +48,8 @@ public sealed class PasswordInput : Grid
             BorderThickness = new Thickness(1),
             HorizontalAlignment = HorizontalAlignment.Stretch,
         };
+        // 获焦时把光标放到末尾，而不是开头
+        FocusBehavior.SetCaretAtEndOnFocus(_passwordBox, true);
         SetColumn(_passwordBox, 0);
         Children.Add(_passwordBox);
         _passwordBox.PasswordChanged += OnPasswordChanged;
@@ -67,6 +69,7 @@ public sealed class PasswordInput : Grid
             Visibility = Visibility.Collapsed,
             HorizontalAlignment = HorizontalAlignment.Stretch,
         };
+        FocusBehavior.SetCaretAtEndOnFocus(_plainBox, true);
         SetColumn(_plainBox, 0);
         Children.Add(_plainBox);
         _plainBox.TextChanged += OnPlainTextChanged;

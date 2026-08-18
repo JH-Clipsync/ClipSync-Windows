@@ -29,6 +29,13 @@ public static class AppPaths
 
     public static string SettingsFile => Path.Combine(Root, "settings.json");
     public static string HistoryFile => Path.Combine(Root, "history.json");
+    public static string DeviceIdFile => Path.Combine(Root, "device.id");
+
+    /// <summary>
+    /// 机器级设备名文件（与登录账号无关）。
+    /// 换用户登录时沿用此名作为新账号下本机的默认设备名。
+    /// </summary>
+    public static string DeviceNameFile => Path.Combine(Root, "device.name");
     public static string LogDirectory => Path.Combine(Root, "logs");
 
     public static void EnsureRoot() => Directory.CreateDirectory(Root);

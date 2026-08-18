@@ -538,6 +538,9 @@ public partial class App : Application
     // ============================================================
     private void OnPresenceChanged(PresenceChange change)
     {
+        // 本机名可能从其他端被修改：从最新在线列表里找到本机，把名字同步到机器级存储
+        SyncLocalDeviceName();
+
         foreach (var d in change.CameOnline)
         {
             ToastManager.Shared.ShowInfo("设备上线", DescribeDevice(d, "已连接"), true);
@@ -546,6 +549,26 @@ public partial class App : Application
         {
             ToastManager.Shared.ShowInfo("设备下线", DescribeDevice(d, "已断开"), false);
         }
+    }
+
+    /// <summary>
+    /// 从在线设备列表中找到本机，把其自定义名写入机器级存储。
+    /// 这样换用户登录 / 从其他端改名后，本机能沿用最新名字。
+    /// </summary>
+    private static void SyncLocalDeviceName()
+    {
+        try
+        {
+            var self = WSClient.Shared.OnlineDevices
+                .FirstOrDefault(d => string.Equals(d.DeviceId, WSClient.Shared.DeviceId, StringComparison.Ordinal));
+            if (self is not null)
+            {
+                var name = (self.Name ?? "").Trim();
+                if (!string.IsNullOrEmpty(name))
+                    WSClient.SaveDeviceName(name);
+            }
+        }
+        catch { /* 忽略 */ }
     }
 
     /// <summary>

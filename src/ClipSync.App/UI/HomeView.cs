@@ -583,70 +583,47 @@ public class HomeView
         return container;
     }
 
-    private void ShowRenameDialog(OnlineDevice d)
+    private async void ShowRenameDialog(OnlineDevice d)
     {
-        var win = new Window
-        {
-            Title = "重命名",
-            Width = 320,
-            SizeToContent = SizeToContent.Height,
-            WindowStartupLocation = WindowStartupLocation.CenterOwner,
-            ResizeMode = ResizeMode.NoResize,
-        };
-
-        var panel = new StackPanel { Margin = new Thickness(16) };
-        var box = new TextBox { Text = d.Name ?? "", MaxLength = 32 };
-        box.SelectAll();
-        box.Focus();
-        panel.Children.Add(box);
-        var err = new TextBlock
-        {
-            Foreground = Brushes.Firebrick,
-            TextWrapping = TextWrapping.Wrap,
-            Margin = new Thickness(0, 8, 0, 0),
-        };
-        panel.Children.Add(err);
-
-        var buttons = new StackPanel
-        {
-            Orientation = Orientation.Horizontal,
-            HorizontalAlignment = HorizontalAlignment.Right,
-            Margin = new Thickness(0, 14, 0, 0),
-        };
-        var cancel = new Button { Content = "取消", Width = 80, Margin = new Thickness(0, 0, 8, 0) };
-        cancel.Click += (_, _) => win.Close();
-        var ok = new Button { Content = "保存", Width = 80, IsDefault = true };
-        buttons.Children.Add(cancel);
-        buttons.Children.Add(ok);
-        panel.Children.Add(buttons);
-
-        ok.Click += async (_, _) =>
-        {
-            var name = (box.Text ?? "").Trim();
-            if (name.Length > 32)
+        var currentName = d.Name ?? "";
+        var ok = AppDialog.Input(
+            "给这台设备起个便于识别的名字（最多 32 个字符）",
+            out var newName,
+            title: "重命名设备",
+            initialValue: currentName,
+            okText: "保存",
+            cancelText: "取消",
+            maxLength: 32,
+            selectAllOnFocus: false,
+            validator: raw =>
             {
-                err.Text = "名称不能超过 32 个字符";
-                return;
-            }
-            ok.IsEnabled = false;
-            cancel.IsEnabled = false;
-            try
-            {
-                await AuthClient.Shared.RenameDeviceAsync(
-                    SettingsStore.Shared.ServerUrl, SettingsStore.Shared.Token, d.DeviceId, name);
-                win.Close();
-            }
-            catch (Exception ex)
-            {
-                err.Text = ex.Message;
-                ok.IsEnabled = true;
-                cancel.IsEnabled = true;
-            }
-        };
+                var n = (raw ?? "").Trim();
+                if (n.Length == 0) return "名称不能为空";
+                if (n.Length > 32) return "名称不能超过 32 个字符";
+                return null;
+            });
 
-        win.Content = panel;
-        win.Owner = System.Windows.Application.Current?.MainWindow;
-        win.ShowDialog();
+        if (!ok) return;
+        var trimmed = newName.Trim();
+
+        try
+        {
+            await AuthClient.Shared.RenameDeviceAsync(
+                SettingsStore.Shared.ServerUrl,
+                SettingsStore.Shared.Token,
+                d.DeviceId,
+                trimmed);
+            // 改的是本机：把名字写入机器级存储，换用户登录时沿用
+            if (string.Equals(d.DeviceId, WSClient.Shared.DeviceId, StringComparison.Ordinal))
+                WSClient.SaveDeviceName(trimmed);
+        }
+        catch (Exception ex)
+        {
+            AppDialog.Alert(
+                "重命名失败：" + ex.Message,
+                "操作失败",
+                DialogIcon.Error);
+        }
     }
 
     private static FrameworkElement CapTag(string text, bool on)
@@ -802,6 +779,7 @@ public class HomeView
             Background = Brushes.White,
             HorizontalAlignment = HorizontalAlignment.Stretch,
         };
+        FocusBehavior.SetCaretAtEndOnFocus(syncPwd, true);
         Grid.SetColumn(syncPwd, 1);
         gridWrap.Children.Add(syncPwd);
         spContainer.Children.Add(gridWrap);
@@ -1355,6 +1333,7 @@ public class HomeView
             };
             // 用 ToolTip 代替 placeholder（WPF PasswordBox 不支持 placeholder）
             pb.ToolTip = placeholder;
+            FocusBehavior.SetCaretAtEndOnFocus(pb, true);
             Grid.SetColumn(pb, 1);
             grid.Children.Add(pb);
             inputControl = pb;

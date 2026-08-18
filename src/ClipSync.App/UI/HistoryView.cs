@@ -97,11 +97,12 @@ public class HistoryView
                 Template = RoundCornerBtnTemplate(),
                 Command = new RelayCommand(_ =>
                 {
-                    if (MessageBox.Show(
-                        $"确定要清空全部{(_filter == HistoryStore.Filter.Sms ? "短信" : "剪贴板")}历史吗？",
+                    if (AppDialog.Confirm(
+                        $"确定要清空全部{(_filter == HistoryStore.Filter.Sms ? "短信" : "剪贴板")}历史吗？此操作不可撤销。",
                         "确认清空",
-                        MessageBoxButton.OKCancel,
-                        MessageBoxImage.Warning) == MessageBoxResult.OK)
+                        okText: "清空",
+                        cancelText: "再想想",
+                        icon: DialogIcon.Warning))
                     {
                         HistoryStore.Shared.Clear(_filter);
                     }
@@ -296,7 +297,12 @@ public class HistoryView
         actions.Children.Add(MakePill("复制", primary: code is null, _ => ClipboardWriter.Apply(msg.Payload)));
         actions.Children.Add(MakePill("删除", primary: false, _ =>
         {
-            if (MessageBox.Show("确定删除这条记录？", "确认", MessageBoxButton.OKCancel) == MessageBoxResult.OK)
+            if (AppDialog.Confirm(
+                "确定删除这条记录？",
+                "确认删除",
+                okText: "删除",
+                cancelText: "取消",
+                icon: DialogIcon.Warning))
                 HistoryStore.Shared.Remove(msg.Id);
         }, danger: true));
         content.Children.Add(actions);

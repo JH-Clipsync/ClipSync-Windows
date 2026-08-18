@@ -139,7 +139,7 @@ public sealed class WSClient : INotifyPropertyChanged
     {
         try
         {
-            var path = Path.Combine(AppPaths.Root, "device.id");
+            var path = AppPaths.DeviceIdFile;
             if (File.Exists(path))
             {
                 var saved = File.ReadAllText(path).Trim();
@@ -154,6 +154,36 @@ public sealed class WSClient : INotifyPropertyChanged
         {
             return "win-" + Guid.NewGuid().ToString("N")[..8];
         }
+    }
+
+    /// <summary>
+    /// 机器级自定义设备名（与登录账号无关）。
+    /// 存在 %APPDATA%\ClipSync\device.name，换用户登录时沿用，作为新账号下本机的默认名。
+    /// 为空时握手由服务端按平台兜底。
+    /// </summary>
+    public static string DeviceName
+    {
+        get
+        {
+            try
+            {
+                return File.Exists(AppPaths.DeviceNameFile)
+                    ? File.ReadAllText(AppPaths.DeviceNameFile).Trim()
+                    : "";
+            }
+            catch { return ""; }
+        }
+    }
+
+    /// <summary>把设备名写入机器级存储（改名成功后调用）。</summary>
+    public static void SaveDeviceName(string name)
+    {
+        try
+        {
+            AppPaths.EnsureRoot();
+            File.WriteAllText(AppPaths.DeviceNameFile, (name ?? "").Trim());
+        }
+        catch { /* 忽略存储写入失败，不影响主流程 */ }
     }
 
     // MARK: - 连接控制
@@ -320,6 +350,10 @@ public sealed class WSClient : INotifyPropertyChanged
         var wsServer = ServerAddress.WsBase(server);
         var url = $"{wsServer}/ws?token={Uri.EscapeDataString(token)}" +
                   $"&device={Uri.EscapeDataString(DeviceId)}&role=pc&platform=windows";
+        // 机器级自定义设备名：换用户登录时沿用作新账号的默认名
+        var localName = DeviceName;
+        if (!string.IsNullOrEmpty(localName))
+            url += $"&name={Uri.EscapeDataString(localName)}";
         // 上报本机同步能力/开关，用于在线列表展示
         var caps = BuildCaps(settings);
         if (!string.IsNullOrEmpty(caps))

@@ -380,6 +380,7 @@ public class OnboardingWizard : Window
             BorderThickness = new Thickness(1),
             PasswordChar = '•',
         };
+        FocusBehavior.SetCaretAtEndOnFocus(_s2Pwd, true);
         col.Children.Add(_s2Pwd);
 
         var testBtn = new Button
@@ -501,6 +502,7 @@ public class OnboardingWizard : Window
             PasswordChar = '•',
             Margin = new Thickness(0, 4, 0, 4),
         };
+        FocusBehavior.SetCaretAtEndOnFocus(_s3SyncPwd, true);
         pwdBox.Children.Add(_s3SyncPwd);
         pwdBox.Children.Add(new TextBlock
         {

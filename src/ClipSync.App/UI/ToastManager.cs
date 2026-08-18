@@ -1,5 +1,6 @@
 namespace ClipSync.App.UI;
 
+using System.Windows;
 using ClipSync.Core.Protocol;
 
 // ============================================================

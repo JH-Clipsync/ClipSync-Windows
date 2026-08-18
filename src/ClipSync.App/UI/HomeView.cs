@@ -1111,12 +1111,13 @@ public class HomeView
                 using var ms = new MemoryStream(bytes);
                 var bmp = BitmapFrame.Create(ms, BitmapCreateOptions.None, BitmapCacheOption.OnLoad);
                 bmp.Freeze();
-                content.Children.Add(new Border
+                var imgCard = new Border
                 {
                     Margin = new Thickness(0, 6, 0, 0),
                     MaxHeight = 120,
                     CornerRadius = new CornerRadius(8),
                     ClipToBounds = true,
+                    Cursor = System.Windows.Input.Cursors.Hand,
                     Child = new System.Windows.Controls.Image
                     {
                         Source = bmp,
@@ -1124,7 +1125,10 @@ public class HomeView
                         HorizontalAlignment = HorizontalAlignment.Left,
                         MaxHeight = 120,
                     },
-                });
+                };
+                imgCard.MouseLeftButtonUp += (_, _) => ImagePreviewWindow.Show(bmp);
+                imgCard.ToolTip = "点击预览大图（Esc 关闭）";
+                content.Children.Add(imgCard);
             }
             catch { /* 图片解码失败就忽略 */ }
         }

@@ -250,7 +250,7 @@ public class HistoryView
                 using var ms = new MemoryStream(bytes);
                 var bmp = BitmapFrame.Create(ms, BitmapCreateOptions.None, BitmapCacheOption.OnLoad);
                 bmp.Freeze();
-                content.Children.Add(new Border
+                var imgCard = new Border
                 {
                     Margin = new Thickness(0, 6, 0, 0),
                     MaxHeight = 160,
@@ -259,13 +259,17 @@ public class HistoryView
                     Background = new SolidColorBrush(Color.FromArgb(0x0F, 0x00, 0x00, 0x00)),
                     Padding = new Thickness(8),
                     HorizontalAlignment = HorizontalAlignment.Left,
+                    Cursor = System.Windows.Input.Cursors.Hand,
                     Child = new System.Windows.Controls.Image
                     {
                         Source = bmp,
                         Stretch = Stretch.Uniform,
                         MaxHeight = 160,
                     },
-                });
+                };
+                imgCard.MouseLeftButtonUp += (_, _) => ImagePreviewWindow.Show(bmp);
+                imgCard.ToolTip = "点击预览大图（Esc 关闭）";
+                content.Children.Add(imgCard);
             }
             catch { /* ignore */ }
         }

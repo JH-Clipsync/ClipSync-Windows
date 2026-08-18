@@ -186,7 +186,7 @@ public sealed class AppDialog : Window
 
         var primaryColor = icon switch
         {
-            DialogIcon.Danger or DialogIcon.Error => AppColors.DangerBrush,
+            DialogIcon.Error => AppColors.DangerBrush,
             DialogIcon.Success => AppColors.SuccessDarkBrush,
             DialogIcon.Warning => AppColors.WarningBrush,
             _ => AppColors.PrimaryBrush,
@@ -302,7 +302,7 @@ public sealed class AppDialog : Window
     {
         DialogIcon.Success => "✅",
         DialogIcon.Warning => "⚠️",
-        DialogIcon.Error or DialogIcon.Danger => "⛔",
+        DialogIcon.Error => "⛔",
         DialogIcon.Question => "❓",
         _ => "ℹ️",
     };
@@ -324,7 +324,7 @@ public sealed class AppDialog : Window
         style.Setters.Add(new Setter(ForegroundProperty,
             isPrimary ? Brushes.White : AppColors.Gray700Brush));
         style.Setters.Add(new Setter(BorderThicknessProperty, new Thickness(0)));
-        style.Setters.Add(new Setter(CursorProperty, Cursors.Hand));
+        style.Setters.Add(new Setter(CursorProperty, System.Windows.Input.Cursors.Hand));
 
         var isMouseOverTrigger = new Trigger { Property = IsMouseOverProperty, Value = true };
         isMouseOverTrigger.Setters.Add(new Setter(BackgroundProperty, hoverColor));

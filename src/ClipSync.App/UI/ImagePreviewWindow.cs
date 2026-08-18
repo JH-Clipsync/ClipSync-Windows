@@ -100,7 +100,7 @@ public sealed class ImagePreviewWindow : Window
             Background = new SolidColorBrush(Color.FromRgb(0x4F, 0x46, 0xE5)),
             Foreground = Brushes.White,
             BorderThickness = new Thickness(0),
-            Cursor = Cursors.Hand,
+            Cursor = System.Windows.Input.Cursors.Hand,
             HorizontalAlignment = HorizontalAlignment.Right,
         };
         copyBtn.Click += (_, _) => CopyToClipboard();

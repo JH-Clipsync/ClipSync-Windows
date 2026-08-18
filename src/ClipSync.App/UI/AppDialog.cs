@@ -1,5 +1,6 @@
 using System.Windows;
 using System.Windows.Controls;
+using System.Windows.Documents;
 using System.Windows.Input;
 using System.Windows.Media;
 using System.Windows.Media.Effects;
@@ -329,7 +330,7 @@ public sealed class AppDialog : Window
         var isMouseOverTrigger = new Trigger { Property = IsMouseOverProperty, Value = true };
         isMouseOverTrigger.Setters.Add(new Setter(BackgroundProperty, hoverColor));
         style.Triggers.Add(isMouseOverTrigger);
-        var isPressedTrigger = new Trigger { Property = IsPressedProperty, Value = true };
+        var isPressedTrigger = new Trigger { Property = Button.IsPressedProperty, Value = true };
         isPressedTrigger.Setters.Add(new Setter(BackgroundProperty, pressedColor));
         style.Triggers.Add(isPressedTrigger);
         var disabledTrigger = new Trigger { Property = IsEnabledProperty, Value = false };

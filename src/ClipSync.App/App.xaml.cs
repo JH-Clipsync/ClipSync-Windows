@@ -97,6 +97,7 @@ public partial class App : Application
         // 6) 消息处理：落历史 + 写剪贴板 + 弹 Toast
         Trace("STEP 6/12 绑定消息接收…");
         WSClient.Shared.MessageReceived += OnMessageReceived;
+        WSClient.Shared.PresenceChanged += OnPresenceChanged;
         Trace("STEP 6/12 ok");
 
         // 7) 账号密码已填 → 自动连接
@@ -530,6 +531,34 @@ public partial class App : Application
 
         // 3) 弹 Toast
         Dispatcher.BeginInvoke(() => ToastManager.Shared.Show(msg));
+    }
+
+    // ============================================================
+    // 其他设备上下线：弹轻量提示
+    // ============================================================
+    private void OnPresenceChanged(PresenceChange change)
+    {
+        foreach (var d in change.CameOnline)
+        {
+            ToastManager.Shared.ShowInfo("设备上线", DescribeDevice(d, "已连接"), true);
+        }
+        foreach (var d in change.WentOffline)
+        {
+            ToastManager.Shared.ShowInfo("设备下线", DescribeDevice(d, "已断开"), false);
+        }
+    }
+
+    /// <summary>
+    /// 构造上下线通知正文：有自定义名显示「名字 · 平台（短ID）」，否则显示「平台 · 短ID」，
+    /// 末尾带上动作（已连接/已断开）。
+    /// </summary>
+    private static string DescribeDevice(OnlineDevice d, string action)
+    {
+        var hasName = !string.IsNullOrWhiteSpace(d.Name);
+        var body = hasName
+            ? $"{d.Name!.Trim()} · {d.PlatformLabel}（{d.ShortId}）"
+            : $"{d.PlatformLabel} · {d.ShortId}";
+        return $"{body} {action}";
     }
 }
 

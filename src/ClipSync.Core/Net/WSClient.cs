@@ -29,6 +29,9 @@ public sealed class WSClient : INotifyPropertyChanged
     /// <summary>收到一条（已解密的）消息。</summary>
     public event Action<SyncMessage>? MessageReceived;
 
+    /// <summary>其他设备上下线变化（已在 UI 线程触发）。首次全量列表不触发。</summary>
+    public event Action<PresenceChange>? PresenceChanged;
+
     private ConnectionState _state = ConnectionState.Disconnected;
     private string? _authError;
     private string? _decryptFailure;
@@ -766,11 +769,27 @@ public sealed class WSClient : INotifyPropertyChanged
 
             var payload = JsonSerializer.Deserialize<PresencePayload>(payloadEl.GetRawText(), ProtocolJson.Options);
             var devices = payload?.Devices ?? new List<OnlineDevice>();
+
+            // diff：仅其他设备，首次列表（当前为空）不触发，避免冷启动误报上线
+            var oldOthers = OnlineDevices.Where(d => !d.IsSelf)
+                .ToDictionary(d => d.DeviceId);
+            var newOthers = devices.Where(d => !d.IsSelf)
+                .ToDictionary(d => d.DeviceId);
+            var change = new PresenceChange();
+            foreach (var d in newOthers.Values)
+                if (!oldOthers.ContainsKey(d.DeviceId)) change.CameOnline.Add(d);
+            foreach (var d in oldOthers.Values)
+                if (!newOthers.ContainsKey(d.DeviceId)) change.WentOffline.Add(d);
+
             _dispatch(() =>
             {
                 OnlineDevices.Clear();
                 foreach (var d in devices) OnlineDevices.Add(d);
             });
+
+            if (oldOthers.Count > 0 && (change.CameOnline.Count > 0 || change.WentOffline.Count > 0))
+                _dispatch(() => PresenceChanged?.Invoke(change));
+
             Log.Info($"[WS] 👥 在线设备更新：{devices.Count} 台");
             return true;
         }

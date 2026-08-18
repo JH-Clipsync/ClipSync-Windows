@@ -452,26 +452,13 @@ public class HomeView
         Margin = new Thickness(0, 4, 0, 2),
     };
 
-    private static FrameworkElement BuildOnlineRow(OnlineDevice d)
+    private FrameworkElement BuildOnlineRow(OnlineDevice d)
     {
-        var outer = new StackPanel { Margin = new Thickness(0, 6, 0, 6) };
+        // 整行横向布局：右侧按钮 Dock 到右边并垂直居中，左侧为内容
+        var row = new DockPanel { LastChildFill = true, Margin = new Thickness(0, 3, 0, 3) };
 
-        // 顶行：圆点 + 平台 + 本机标签 + IP·ID（右靠）
-        var row = new DockPanel { LastChildFill = true };
-
-        var dot = new Border
-        {
-            Width = 8,
-            Height = 8,
-            CornerRadius = new CornerRadius(4),
-            Background = new SolidColorBrush(Color.FromRgb(0x10, 0xB9, 0x81)),
-            VerticalAlignment = VerticalAlignment.Center,
-            Margin = new Thickness(0, 0, 10, 0),
-        };
-        DockPanel.SetDock(dot, Dock.Left);
-        row.Children.Add(dot);
-
-        var sub = new TextBlock
+        // 右侧固定区：平时显示 IP·ID，悬停时显示「重命名」按钮，均垂直居中
+        var rightNormal = new TextBlock
         {
             Text = $"{d.Ip} · {d.ShortId}",
             FontSize = 11,
@@ -479,25 +466,71 @@ public class HomeView
             Foreground = new SolidColorBrush(Color.FromRgb(0x6B, 0x72, 0x80)),
             VerticalAlignment = VerticalAlignment.Center,
             HorizontalAlignment = HorizontalAlignment.Right,
+            Margin = new Thickness(8, 0, 0, 0),
         };
-        DockPanel.SetDock(sub, Dock.Right);
-        row.Children.Add(sub);
+        var rightHover = new Button
+        {
+            Content = "✎  重命名",
+            FontSize = 12,
+            FontWeight = FontWeights.SemiBold,
+            Foreground = Brushes.White,
+            Background = new SolidColorBrush(Color.FromRgb(0x63, 0x66, 0xF1)),
+            BorderThickness = new Thickness(0),
+            Padding = new Thickness(10, 4, 10, 4),
+            Cursor = Cursors.Hand,
+            VerticalAlignment = VerticalAlignment.Center,
+            HorizontalAlignment = HorizontalAlignment.Right,
+            Margin = new Thickness(8, 0, 0, 0),
+            Visibility = Visibility.Collapsed,
+            Tag = d,
+        };
+        rightHover.Click += (s, _) =>
+        {
+            if (s is FrameworkElement fe && fe.Tag is OnlineDevice dev) ShowRenameDialog(dev);
+        };
+        DockPanel.SetDock(rightNormal, Dock.Right);
+        DockPanel.SetDock(rightHover, Dock.Right);
+        row.Children.Add(rightNormal);
+        row.Children.Add(rightHover);
 
-        var namePanel = new StackPanel
+        // 左侧内容：第一行（圆点+名称+本机）+ 第二行（能力标签）
+        var content = new StackPanel { VerticalAlignment = VerticalAlignment.Center };
+
+        var top = new StackPanel
         {
             Orientation = Orientation.Horizontal,
             VerticalAlignment = VerticalAlignment.Center,
         };
-        namePanel.Children.Add(new TextBlock
+        top.Children.Add(new Border
         {
-            Text = d.PlatformLabel,
+            Width = 8,
+            Height = 8,
+            CornerRadius = new CornerRadius(4),
+            Background = new SolidColorBrush(Color.FromRgb(0x10, 0xB9, 0x81)),
+            VerticalAlignment = VerticalAlignment.Center,
+            Margin = new Thickness(0, 0, 10, 0),
+        });
+
+        top.Children.Add(new TextBlock
+        {
+            Text = d.DisplayName,
             FontSize = 13,
             Foreground = Brushes.Black,
             VerticalAlignment = VerticalAlignment.Center,
         });
+        if (!string.IsNullOrWhiteSpace(d.Name))
+        {
+            top.Children.Add(new TextBlock
+            {
+                Text = " " + d.PlatformLabel,
+                FontSize = 11,
+                Foreground = new SolidColorBrush(Color.FromRgb(0x6B, 0x72, 0x80)),
+                VerticalAlignment = VerticalAlignment.Center,
+            });
+        }
         if (d.IsSelf)
         {
-            namePanel.Children.Add(new Border
+            top.Children.Add(new Border
             {
                 CornerRadius = new CornerRadius(999),
                 Background = new SolidColorBrush(Color.FromArgb(0x1A, 0x63, 0x66, 0xF1)),
@@ -513,17 +546,107 @@ public class HomeView
                 },
             });
         }
-        row.Children.Add(namePanel);
-        outer.Children.Add(row);
+        content.Children.Add(top);
 
-        // 第二行：同步开关标签
         var caps = new WrapPanel { Margin = new Thickness(18, 5, 0, 0) };
         caps.Children.Add(CapTag("剪贴板", d.ClipUp));
         caps.Children.Add(CapTag("短信", d.SmsIn));
         caps.Children.Add(CapTag("自动接收", d.AutoPut));
-        outer.Children.Add(caps);
+        content.Children.Add(caps);
 
-        return outer;
+        row.Children.Add(content);
+
+        // 用 Border 包裹以提供 hover 高亮背景 + 圆角
+        var hoverBg = new SolidColorBrush(Colors.Transparent);
+        var container = new Border
+        {
+            Background = hoverBg,
+            CornerRadius = new CornerRadius(8),
+            Padding = new Thickness(8, 6, 8, 6),
+            Child = row,
+        };
+
+        var hoverBrush = new SolidColorBrush(Color.FromArgb(0x14, 0x63, 0x66, 0xF1));
+        container.MouseEnter += (_, _) =>
+        {
+            hoverBg.Color = hoverBrush.Color;
+            rightNormal.Visibility = Visibility.Collapsed;
+            rightHover.Visibility = Visibility.Visible;
+        };
+        container.MouseLeave += (_, _) =>
+        {
+            hoverBg.Color = Colors.Transparent;
+            rightNormal.Visibility = Visibility.Visible;
+            rightHover.Visibility = Visibility.Collapsed;
+        };
+
+        return container;
+    }
+
+    private void ShowRenameDialog(OnlineDevice d)
+    {
+        var win = new Window
+        {
+            Title = "重命名",
+            Width = 320,
+            SizeToContent = SizeToContent.Height,
+            WindowStartupLocation = WindowStartupLocation.CenterOwner,
+            ResizeMode = ResizeMode.NoResize,
+        };
+
+        var panel = new StackPanel { Margin = new Thickness(16) };
+        var box = new TextBox { Text = d.Name ?? "", MaxLength = 32 };
+        box.SelectAll();
+        box.Focus();
+        panel.Children.Add(box);
+        var err = new TextBlock
+        {
+            Foreground = Brushes.Firebrick,
+            TextWrapping = TextWrapping.Wrap,
+            Margin = new Thickness(0, 8, 0, 0),
+        };
+        panel.Children.Add(err);
+
+        var buttons = new StackPanel
+        {
+            Orientation = Orientation.Horizontal,
+            HorizontalAlignment = HorizontalAlignment.Right,
+            Margin = new Thickness(0, 14, 0, 0),
+        };
+        var cancel = new Button { Content = "取消", Width = 80, Margin = new Thickness(0, 0, 8, 0) };
+        cancel.Click += (_, _) => win.Close();
+        var ok = new Button { Content = "保存", Width = 80, IsDefault = true };
+        buttons.Children.Add(cancel);
+        buttons.Children.Add(ok);
+        panel.Children.Add(buttons);
+
+        ok.Click += async (_, _) =>
+        {
+            var name = (box.Text ?? "").Trim();
+            if (name.Length > 32)
+            {
+                err.Text = "名称不能超过 32 个字符";
+                return;
+            }
+            ok.IsEnabled = false;
+            cancel.IsEnabled = false;
+            try
+            {
+                await AuthClient.Shared.RenameDeviceAsync(
+                    SettingsStore.Shared.ServerUrl, SettingsStore.Shared.Token, d.DeviceId, name);
+                win.Close();
+            }
+            catch (Exception ex)
+            {
+                err.Text = ex.Message;
+                ok.IsEnabled = true;
+                cancel.IsEnabled = true;
+            }
+        };
+
+        win.Content = panel;
+        win.Owner = System.Windows.Application.Current?.MainWindow;
+        win.ShowDialog();
     }
 
     private static FrameworkElement CapTag(string text, bool on)

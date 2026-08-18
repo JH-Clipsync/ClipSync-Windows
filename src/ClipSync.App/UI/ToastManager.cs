@@ -14,7 +14,7 @@ public sealed class ToastManager
 {
     public static ToastManager Shared { get; } = new();
 
-    private readonly List<ToastWindow> _active = new();
+    private readonly List<Window> _active = new();
     private const int MaxActive = 3;
 
     /// <summary>3 秒内相同内容去重窗口（对齐 Mac 端 dedupWindow）</summary>
@@ -24,6 +24,36 @@ public sealed class ToastManager
     private readonly List<(string fingerprint, DateTime at)> _recentShown = new();
 
     private ToastManager() { }
+
+    /// <summary>简洁状态通知（设备上下线）：标题 + 正文。</summary>
+    public void ShowInfo(string title, string body, bool online)
+    {
+        if (System.Windows.Application.Current?.Dispatcher is not { } d) return;
+        d.BeginInvoke(() =>
+        {
+            var fp = $"INFO|{(online ? "on" : "off")}|{title}|{body}";
+            var now = DateTime.Now;
+            _recentShown.RemoveAll(x => (now - x.at) > DedupWindow);
+            if (_recentShown.Any(x => x.fingerprint == fp)) return;
+            _recentShown.Add((fp, now));
+
+            if (_active.Count >= MaxActive)
+            {
+                FadeOut(_active[0]);
+            }
+
+            var toast = new InfoToastWindow(title, body, online);
+            toast.Closed += (_, _) =>
+            {
+                _active.Remove(toast);
+                Relayout();
+            };
+            toast.ClosedByUser += () => _active.Remove(toast);
+            _active.Add(toast);
+            toast.Show();
+            Relayout();
+        });
+    }
 
     public void Show(SyncMessage msg)
     {
@@ -46,11 +76,9 @@ public sealed class ToastManager
             _recentShown.Add((fp, now));
 
             // 超过上限：关掉最旧的那个（队头）
-            while (_active.Count >= MaxActive)
+            if (_active.Count >= MaxActive)
             {
-                var oldest = _active[0];
-                oldest.FadeOutAndClose();
-                // 事件会把它从列表移除
+                FadeOut(_active[0]);
             }
 
             var toast = new ToastWindow(msg);
@@ -85,6 +113,16 @@ public sealed class ToastManager
             return $"I|{p.Kind ?? ""}|{p.Mime ?? ""}|{d}";
         }
         return $"O|{msg.Type}|{p.Kind ?? ""}|{p.Preview ?? ""}";
+    }
+
+    private static void FadeOut(Window w)
+    {
+        switch (w)
+        {
+            case ToastWindow tw: tw.FadeOutAndClose(); break;
+            case InfoToastWindow iw: iw.FadeOutAndClose(); break;
+            default: w.Close(); break;
+        }
     }
 
     private void Relayout()

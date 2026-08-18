@@ -64,10 +64,21 @@ public sealed class OnlineDevice
     [JsonPropertyName("device_id")] public string DeviceId { get; set; } = "";
     [JsonPropertyName("role")] public string Role { get; set; } = "";
     [JsonPropertyName("platform")] public string Platform { get; set; } = "";
+    [JsonPropertyName("name")] public string Name { get; set; } = "";
     [JsonPropertyName("ip")] public string Ip { get; set; } = "";
     [JsonPropertyName("online_at")] public long OnlineAt { get; set; }
     [JsonPropertyName("self")] public bool IsSelf { get; set; }
     [JsonPropertyName("caps")] public Dictionary<string, bool> Caps { get; set; } = new();
+
+    /// <summary>列表展示名：优先用户自定义名，否则平台标签。</summary>
+    public string DisplayName
+    {
+        get
+        {
+            var n = (Name ?? "").Trim();
+            return n.Length == 0 ? PlatformLabel : n;
+        }
+    }
 
     public string PlatformLabel => Platform?.ToLowerInvariant() switch
     {
@@ -105,6 +116,13 @@ public sealed class OnlineDevice
 public sealed class PresencePayload
 {
     [JsonPropertyName("devices")] public List<OnlineDevice> Devices { get; set; } = new();
+}
+
+/// <summary>一次在线列表变化：新上线和刚下线的其他设备。</summary>
+public sealed class PresenceChange
+{
+    public List<OnlineDevice> CameOnline { get; } = new();
+    public List<OnlineDevice> WentOffline { get; } = new();
 }
 
 /// <summary>业务子类型（payload.kind）。</summary>

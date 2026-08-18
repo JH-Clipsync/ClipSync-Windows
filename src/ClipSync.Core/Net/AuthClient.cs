@@ -129,6 +129,21 @@ public sealed class AuthClient
             new Dictionary<string, string>(), token, ct).ConfigureAwait(false);
     }
 
+    /// <summary>
+    /// POST /device/name —— 给指定设备设置自定义名称，
+    /// 服务端会实时广播给该账号所有在线端。
+    /// </summary>
+    public async Task RenameDeviceAsync(string server, string token, string deviceId, string name,
+        CancellationToken ct = default)
+    {
+        var body = new Dictionary<string, string>
+        {
+            ["device_id"] = deviceId,
+            ["name"] = name,
+        };
+        await PostAsync(server, "/device/name", body, token, ct).ConfigureAwait(false);
+    }
+
     // MARK: - 内部
 
     private static AuthSession Materialize(JsonElement json, string fallbackUsername)

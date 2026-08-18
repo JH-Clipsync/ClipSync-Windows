@@ -325,13 +325,11 @@ public class HistoryView
             Background = primary
                 ? new SolidColorBrush(Color.FromRgb(0x63, 0x66, 0xF1))
                 : danger
-                    ? new SolidColorBrush(Color.FromArgb(0xFF, 0xFE, 0x2E, 0x2E))
-                    : new SolidColorBrush(Color.FromArgb(0xFF, 0xF3, 0xF4, 0xF6)),
-            Foreground = primary
-                ? Brushes.White
-                : danger
                     ? new SolidColorBrush(Color.FromRgb(0xDC, 0x26, 0x26))
-                    : Brushes.Black,
+                    : new SolidColorBrush(Color.FromArgb(0xFF, 0xF3, 0xF4, 0xF6)),
+            // primary 和 danger 都是实心深色底，文字必须白色；
+            // 之前 danger 用了深红前景 + 亮红底，两个红叠在一起字根本看不见。
+            Foreground = (primary || danger) ? Brushes.White : Brushes.Black,
             BorderThickness = new Thickness(0),
             Cursor = System.Windows.Input.Cursors.Hand,
         };

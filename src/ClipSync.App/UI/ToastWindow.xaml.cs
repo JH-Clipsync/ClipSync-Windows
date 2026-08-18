@@ -1,4 +1,5 @@
 using System.Windows;
+using System.Windows.Input;
 using System.Windows.Media;
 using System.Windows.Media.Animation;
 using System.Windows.Media.Effects;
@@ -40,9 +41,20 @@ public partial class ToastWindow : Window
         ShowActivated = false;
         Topmost = true;
         ResizeMode = ResizeMode.NoResize;
-        Width = 380;
+        Width = 360;
         SizeToContent = SizeToContent.Height;
         Opacity = 0;
+        // ESC 关闭：弹窗不抢焦点，但挂一个 PreviewKeyDown 在 Window 上，
+        // 配合 ToastManager 装的全局 Keyboard.PreviewKeyDown 也能关掉最顶层 Toast。
+        PreviewKeyDown += (_, e) =>
+        {
+            if (e.Key == System.Windows.Input.Key.Escape)
+            {
+                ClosedByUser?.Invoke();
+                FadeOutAndClose();
+                e.Handled = true;
+            }
+        };
 
         Content = BuildContent();
         Loaded += OnLoaded;
@@ -335,11 +347,15 @@ public partial class ToastWindow : Window
         return template;
     }
 
-    private FrameworkElement? BuildImage()
+    private const double ThumbWidth = 280;
+    private const double ThumbHeight = 158;
+
+    /// <summary>解码 base64 图片为 BitmapSource，失败返回 null。</summary>
+    private System.Windows.Media.Imaging.BitmapSource? DecodeImage()
     {
+        if (!IsImageMsg || string.IsNullOrEmpty(_msg.Payload.Data)) return null;
         try
         {
-            if (!IsImageMsg || string.IsNullOrEmpty(_msg.Payload.Data)) return null;
             var bytes = Convert.FromBase64String(_msg.Payload.Data);
             using var ms = new System.IO.MemoryStream(bytes);
             var bmp = System.Windows.Media.Imaging.BitmapFrame.Create(
@@ -347,32 +363,42 @@ public partial class ToastWindow : Window
                 System.Windows.Media.Imaging.BitmapCreateOptions.None,
                 System.Windows.Media.Imaging.BitmapCacheOption.OnLoad);
             bmp.Freeze();
-            double scale = Math.Min(260.0 / Math.Max(bmp.PixelWidth, bmp.PixelHeight), 320.0 / bmp.PixelWidth);
-            scale = Math.Min(scale, 1.0);
-            var displayW = Math.Max(200, Math.Round(bmp.PixelWidth * scale));
-            var displayH = Math.Max(120, Math.Round(bmp.PixelHeight * scale));
+            return bmp;
+        }
+        catch { return null; }
+    }
 
-            var card = new Border
-            {
-                Background = new SolidColorBrush(Color.FromArgb(0x0F, 0x00, 0x00, 0x00)),
-                CornerRadius = new CornerRadius(10),
-                Padding = new Thickness(10),
-                HorizontalAlignment = HorizontalAlignment.Center,
-                MaxWidth = displayW + 20,
-                Child = new System.Windows.Controls.Image
-                {
-                    Source = bmp,
-                    Width = displayW,
-                    Height = displayH,
-                    Stretch = Stretch.Uniform,
-                },
-            };
-            return card;
-        }
-        catch
+    private FrameworkElement? BuildImage()
+    {
+        var bmp = DecodeImage();
+        if (bmp is null) return null;
+
+        // 固定 280×158 卡片，图片等比缩放 letterbox 居中。
+        // 卡片尺寸稳定，Toast 宽度也就稳定了。
+        var card = new Border
         {
-            return null;
-        }
+            Background = new SolidColorBrush(Color.FromArgb(0x0F, 0x00, 0x00, 0x00)),
+            CornerRadius = new CornerRadius(10),
+            Width = ThumbWidth,
+            Height = ThumbHeight,
+            HorizontalAlignment = HorizontalAlignment.Center,
+            Child = new System.Windows.Controls.Image
+            {
+                Source = bmp,
+                Stretch = Stretch.Uniform,
+                Margin = new Thickness(10),
+                Cursor = System.Windows.Input.Cursors.Hand,
+            },
+        };
+        // 点击卡片 → 预览大图（先关 Toast 再开预览）
+        card.MouseLeftButtonUp += (_, _) =>
+        {
+            ClosedByUser?.Invoke();
+            FadeOutAndClose();
+            ImagePreviewWindow.Show(bmp);
+        };
+        card.ToolTip = "点击预览大图（Esc 关闭）";
+        return card;
     }
 
     private FrameworkElement BuildActionRow()
@@ -426,6 +452,25 @@ public partial class ToastWindow : Window
             });
             row.Children.Add(copyCode);
             row.Children.Add(copyAll);
+        }
+        else if (IsImageMsg)
+        {
+            // 图片消息：复制 + 预览；复制后不自动关，让用户可以接着点预览
+            var copy = MakePill("复制", true, (_, _) =>
+            {
+                ClipboardWriter.Apply(_msg.Payload);
+            });
+            var preview = MakePill("预览", false, (_, _) =>
+            {
+                if (DecodeImage() is { } bmp)
+                {
+                    ClosedByUser?.Invoke();
+                    FadeOutAndClose();
+                    ImagePreviewWindow.Show(bmp);
+                }
+            });
+            row.Children.Add(copy);
+            row.Children.Add(preview);
         }
         else
         {

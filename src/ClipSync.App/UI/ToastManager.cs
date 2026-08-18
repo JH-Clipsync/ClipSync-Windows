@@ -1,6 +1,7 @@
 namespace ClipSync.App.UI;
 
 using System.Windows;
+using System.Windows.Input;
 using ClipSync.Core.Protocol;
 
 // ============================================================
@@ -24,11 +25,39 @@ public sealed class ToastManager
     /// <summary>最近弹过的消息：(指纹, 时间戳)。按时间顺序，清理过期项。</summary>
     private readonly List<(string fingerprint, DateTime at)> _recentShown = new();
 
+    /// <summary>全局键盘监听：Toast 因为 ShowActivated=false 不拿焦点，
+    /// 用 EventManager.RegisterClassHandler 在 Window 类上挂一个 PreviewKeyDown，
+    /// ESC 时关掉最顶部的 Toast，其他键原样放行。</summary>
+    private bool _escapeHooked;
+
     private ToastManager() { }
+
+    private void EnsureEscapeHook()
+    {
+        if (_escapeHooked) return;
+        _escapeHooked = true;
+        EventManager.RegisterClassHandler(
+            typeof(Window),
+            UIElement.PreviewKeyDownEvent,
+            new KeyEventHandler((_, e) =>
+            {
+                if (e.Key != Key.Escape) return;
+                // 预览窗口自己的 ESC 优先（它是激活窗口），不要把它和 Toast 一起关掉。
+                if (Application.Current?.Windows.OfType<ImagePreviewWindow>()
+                    .Any(w => w.IsActive) == true) return;
+                if (_active.Count > 0)
+                {
+                    var top = _active[^1];
+                    FadeOut(top);
+                    e.Handled = true;
+                }
+            }));
+    }
 
     /// <summary>简洁状态通知（设备上下线）：标题 + 正文。</summary>
     public void ShowInfo(string title, string body, bool online)
     {
+        EnsureEscapeHook();
         if (System.Windows.Application.Current?.Dispatcher is not { } d) return;
         d.BeginInvoke(() =>
         {
@@ -58,6 +87,7 @@ public sealed class ToastManager
 
     public void Show(SyncMessage msg)
     {
+        EnsureEscapeHook();
         if (System.Windows.Application.Current?.Dispatcher is not { } d) return;
 
         // 先在调用线程算指纹（不依赖 UI 线程），避免把判重逻辑放进 BeginInvoke

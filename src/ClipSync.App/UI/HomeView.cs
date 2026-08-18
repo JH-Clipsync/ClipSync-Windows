@@ -477,7 +477,7 @@ public class HomeView
             Background = new SolidColorBrush(Color.FromRgb(0x63, 0x66, 0xF1)),
             BorderThickness = new Thickness(0),
             Padding = new Thickness(10, 4, 10, 4),
-            Cursor = Cursors.Hand,
+            Cursor = System.Windows.Input.Cursors.Hand,
             VerticalAlignment = VerticalAlignment.Center,
             HorizontalAlignment = HorizontalAlignment.Right,
             Margin = new Thickness(8, 0, 0, 0),

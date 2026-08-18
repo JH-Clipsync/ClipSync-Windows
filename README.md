@@ -1,5 +1,5 @@
 <p align="center">
-  <img src="src/ClipSync.App/Resources/app.ico" width="128" alt="ClipSync 图标"/>
+  <img src="src/ClipSync.App/Resources/app.png" width="128" alt="ClipSync 图标"/>
 </p>
 
 <h1 align="center">ClipSync for Windows</h1>

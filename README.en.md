@@ -1,11 +1,11 @@
 <p align="center">
-  <img src="src/ClipSync.App/Resources/app.png" width="128" alt="ClipSync Logo"/>
+  <img src="src/ClipSync.App/Resources/app.png" width="128" alt="ClipSync icon"/>
 </p>
 
 <h1 align="center">ClipSync for Windows</h1>
 
 <p align="center">
-  <b>Phone verification codes & clipboard → Windows popups, one-click copy.</b><br/>
+  <b>Phone verification codes & clipboard → Windows toast, one click to copy.</b><br/>
   <a href="README.md">简体中文</a> ·
   <a href="README.en.md">English</a> ·
   <a href="README.ja.md">日本語</a>
@@ -13,106 +13,116 @@
 
 ---
 
-ClipSync is a self-hosted, cross-device message syncing tool. This repository contains the Windows desktop client, built with **.NET 8 + WPF (C#)**.
+ClipSync is a self-hosted, cross-platform message sync tool. This repository is the Windows desktop client, built with **.NET 8 + WPF (C#)**.
 
-Core use case: **when your phone receives a verification code or you copy something, Windows immediately shows a toast with one-click copy — and vice versa, content copied on Windows is synced to your other devices in real time.**
+Core scenario: **when you receive a verification code on your phone or copy something, a Windows toast pops up instantly with one-click copy to your clipboard; conversely, anything you copy on Windows is synced to other devices in real time.**
 
-No third-party push services are involved — all traffic goes through your own WebSocket relay, with optional end-to-end encryption. Your data stays under your control.
-
----
-
-## ✨ Features
-
-| Area | What it does |
-|------|--------------|
-| 📩 **SMS code toasts** | When your phone receives a code, a Windows toast pops up top-right with one-click "Copy code" and "Copy full text" buttons |
-| 📋 **Bidirectional clipboard sync** | Text and images copied on this PC are auto-uploaded; clips from other devices are auto-written to the local clipboard |
-| 🛡️ **Optional E2E encryption** | AES-256-GCM with PBKDF2-HMAC-SHA256 (200,000 iterations). The server only sees ciphertext |
-| 🔔 **Toast notifications** | Non-focus-stealing banners, auto-dismiss after 5s, max 3 stacked. Verification codes are auto-detected with a dedicated button |
-| 🖥️ **Tray resident** | Closing the main window hides to the system tray; left-click to restore, right-click for menu |
-| 👥 **Online devices list** | The home view shows every device on the same account — platform, IP, and sync capabilities — in real time |
-| 🚀 **Launch at startup** | One toggle in the installer or in-app; writes to `HKCU\...\Run` |
-| 🧭 **First-run wizard** | Guided setup for server address, credentials, and E2EE — all in one flow |
-| 📜 **History** | Last 500 messages persisted locally, with copy / delete / category filtering |
-| 🔄 **Auto reconnect** | Reconnects on network drops; expired tokens are silently refreshed using saved credentials |
-| 🔒 **Single instance** | A global mutex prevents duplicate processes; launching again brings the existing window to front |
+No third-party push services are involved — traffic goes through your own WebSocket relay, with optional end-to-end encryption, so your privacy stays under your control.
 
 ---
 
-## 🖼️ UI Overview
+## ✨ Core Features
+
+| Module | Description |
+|------|------|
+| 📩 **SMS code toast** | When the phone receives a verification code, a Windows notification pops up in the top-right corner; copy the code or the full text with one click |
+| 📋 **Two-way clipboard sync** | Text/images copied locally are uploaded automatically; content copied on other devices is written to the local clipboard automatically |
+| 🛡️ **End-to-end encryption (optional)** | AES-256-GCM encryption with PBKDF2-HMAC-SHA256 (200,000 iterations) key derivation; the server only forwards ciphertext |
+| 🔔 **Toast banners** | Don't steal focus, auto-dismiss after 5 seconds, stack up to 3; verification codes are smart-detected and exposed via a dedicated button |
+| 🖥️ **Tray resident** | Closing the main window sends it to the system tray; left-click to restore, right-click for the menu; supports minimizing to tray |
+| 👥 **Online device list** | The home page shows real-time online devices under the same account, including platform, IP and sync capabilities |
+| 🚀 **Auto-start on boot** | Enable with one click from the installer or the app (writes to `HKCU\...\Run`) |
+| 🧭 **First-run wizard** | Guides users through server address, account/password and end-to-end encryption setup in one go |
+| 📜 **History** | Locally persists the latest 500 messages, with search, copy, delete and category filtering |
+| 🔄 **Auto reconnect** | Reconnects automatically on network flakiness; when the token expires it is re-exchanged using the locally saved account/password |
+| 🔒 **Single instance** | Guarded by a Global Mutex; re-launching brings the already-running main window to the foreground |
+
+---
+
+## 🖼️ UI Preview
 
 | Home | SMS History | Clipboard History |
-|------|-------------|-------------------|
-| Connection status, account, encryption, sync toggles, online devices, latest message | Chronological list with "copy code" / delete | Text and image previews with copy / delete |
+|------|----------|------------|
+| Connection status, account, encryption, sync toggles, online devices, recent messages | Reverse chronological order; copy code / delete supported | Text and image preview; copy / delete supported |
 
 ---
 
 ## 📦 Download & Install
 
-Head to [GitHub Releases](https://github.com/JH-Clipsync/ClipSync-Windows/releases) and pick the right build:
+Head to [GitHub Releases](https://github.com/JH-Clipsync/ClipSync-Windows/releases) and pick the architecture you need:
 
-| File | Use for |
-|------|---------|
-| `ClipSync-Setup-<ver>-win-x64.exe` | Most Intel/AMD 64-bit Windows PCs (recommended) |
-| `ClipSync-Setup-<ver>-win-arm64.exe` | ARM64 devices (Surface Pro X, Snapdragon laptops) |
-| `ClipSync-<ver>-win-x64.zip` | Portable zip — unzip and run, no registry changes |
+| File | Use case |
+|------|----------|
+| `ClipSync-Setup-<version>-win-x64.exe` | Most Intel/AMD 64-bit Windows PCs (recommended) |
+| `ClipSync-Setup-<version>-win-arm64.exe` | Surface Pro X, Snapdragon laptops and other ARM64 devices |
+| `ClipSync-<version>-win-x64.zip` | Portable green build (unzip and run; no registry writes) |
 
-> Installers are **self-contained** — the .NET 8 runtime is bundled, so **nothing extra needs to be installed**. The default "Just Me" mode installs to `%LocalAppData%\Programs\ClipSync` without requiring admin rights.
+> The installer is a **self-contained deployment** that bundles the .NET 8 runtime, so **the target machine does not need .NET installed separately**. By default it installs per-user to `%LocalAppData%\Programs\ClipSync` and does not require administrator privileges.
 
-System requirements: **Windows 10 1809 (build 17763) or later / Windows 11**.
+System requirements: **Windows 10 1809 (17763) or later / Windows 11**.
 
 ---
 
 ## 🚀 Quick Start
 
 1. Install and launch ClipSync
-2. On first run the onboarding wizard will guide you through:
-   - **Server address** (e.g. `192.168.1.10:8080`, supports `ws://` / `wss://`)
-   - **Username / password** issued by your server admin (a token is fetched automatically)
-   - **End-to-end encryption** — enable and set a sync password (must match across devices)
-3. Click **Connect**. When the tray icon turns green, you're online.
-4. Sign in with the same account on your phone ([ClipSync-Android](https://github.com/JH-Clipsync/ClipSync-Android)) to start syncing.
+2. The first run opens the onboarding wizard:
+   - Enter the **server address** (e.g. `192.168.1.10:8080`, supports `ws://` / `wss://`)
+   - Enter the **username / password** assigned by the admin (a token is exchanged automatically on first connect)
+   - Choose whether to enable **end-to-end encryption** and enter the sync password (both ends must match)
+3. Click "Connect" — the tray icon turns green when connected
+4. On your phone ([ClipSync-Android](https://github.com/JH-Clipsync/ClipSync-Android)) log in with the same account, and syncing begins
 
 ---
 
-## 🧩 Project Structure
+## 🧩 Project Architecture
 
 ```
 ClipSync-Windows/
 ├── src/
 │   ├── ClipSync.Core/              # Cross-platform core (protocol/crypto/net/storage)
-│   │   ├── Crypto/                 # AES-256-GCM + PBKDF2 with key cache
-│   │   ├── Net/                    # WSClient / AuthClient / ServerAddress
-│   │   ├── Protocol/               # SyncMessage / MessagePayload / code extractor
+│   │   ├── Crypto/                 # AES-256-GCM + PBKDF2 (E2EECrypto / PayloadCipher)
+│   │   ├── Net/                    # WSClient / AuthClient / ServerAddress / ConnectionState
+│   │   ├── Protocol/               # Models (SyncMessage / MessagePayload) + SmsCodeExtractor
 │   │   ├── Storage/                # SettingsStore / HistoryStore / AppPaths
-│   │   └── Diagnostics/            # Daily-rotating file log
-│   └── ClipSync.App/               # WPF application
-│       ├── App.xaml / App.xaml.cs  # Entry (single-instance, tray, Dispatcher)
-│       ├── MainWindow.xaml(.cs)    # Main window (left nav + content host)
+│   │   └── Diagnostics/            # Daily-rolling logs (Log)
+│   └── ClipSync.App/               # WPF client
+│       ├── App.xaml / App.xaml.cs  # Entry (single instance, tray, Dispatcher injection)
+│       ├── MainWindow.xaml(.cs)    # Main window (left nav + content area)
+│       ├── GlobalUsings.cs         # Global usings
 │       ├── Services/
-│       │   ├── ClipboardMonitor.cs # 600ms polling + image compression + dedup
-│       │   ├── ClipboardWriter.cs  # Writes remote payloads to local clipboard
-│       │   └── AutoStartService.cs # Startup registry toggle
+│       │   ├── ClipboardMonitor.cs # 600ms polling + image compression + double de-dup
+│       │   ├── ClipboardWriter.cs  # Writes remote messages into the local clipboard
+│       │   └── AutoStartService.cs # Auto-start on boot (registry)
 │       ├── UI/
-│       │   ├── HomeView.cs         # Home (status, devices, latest message)
+│       │   ├── HomeView.cs         # Home (status cards + online devices + recent messages)
 │       │   ├── HistoryView.cs      # SMS / clipboard history
 │       │   ├── SettingsView.cs     # Settings page
-│       │   ├── OnboardingWizard.cs # First-run wizard
-│       │   ├── ToastWindow.xaml(.cs) # Top-right toast
-│       │   └── ToastManager.cs     # Stacking toasts
-│       └── Resources/app.ico
+│       │   ├── OnboardingWizard.cs # First-run onboarding
+│       │   ├── ToastWindow.xaml(.cs) # Top-right toast banner
+│       │   ├── InfoToastWindow.xaml.cs # Info toasts (quick action for verification codes, etc.)
+│       │   ├── ToastManager.cs     # Multi-toast stacking manager
+│       │   ├── ImagePreviewWindow.xaml.cs # Image viewer
+│       │   ├── AppColors.cs        # Global palette
+│       │   ├── AppDialog.cs        # Common dialog
+│       │   ├── PasswordInput.cs    # Password input control
+│       │   ├── FocusBehavior.cs    # Attached behavior for auto-focus
+│       │   └── SmsPayloadSanitizer.cs # SMS message cleaning / redaction
+│       └── Resources/
+│           ├── app.png             # App icon (PNG, used in README/notifications)
+│           └── app.ico             # App icon (ICO, used in windows/tray)
 ├── installer/
-│   ├── ClipSync.iss                # Inno Setup script (Chinese/English wizard)
+│   ├── ClipSync.iss                # Inno Setup installer script (Chinese/English wizard)
 │   └── assets/
-└── .github/workflows/release.yml   # GitHub Actions: x64/arm64 auto release
+└── .github/workflows/release.yml   # GitHub Actions: automated x64/arm64 dual-arch release
 ```
 
 ### Tech Stack
 
 - **.NET 8** + **WPF** (`net8.0-windows`)
-- **C# 12** with `Nullable` and `ImplicitUsings`
+- **C# 12** with `Nullable` and `ImplicitUsings` enabled
 - `System.Drawing.Common` / `Microsoft.Windows.Compatibility` (clipboard images + tray icon)
-- `System.Text.Json` (no reflection-based serializers)
+- JSON serialization: `System.Text.Json` (source-generator friendly, no reflection)
 - Installer: [Inno Setup 6](https://jrsoftware.org/isinfo.php)
 
 ---
@@ -121,22 +131,22 @@ ClipSync-Windows/
 
 ### Prerequisites
 
-- [.NET 8 SDK](https://dotnet.microsoft.com/download/dotnet/8.0)
-- Windows 10/11 (WPF requires Windows to build)
+- [.NET 8 SDK](https://dotnet.microsoft.com/zh-cn/download/dotnet/8.0)
+- Windows 10/11 (WPF must be compiled on Windows)
 
-### Command line
+### Command Line
 
 ```powershell
 # Restore dependencies
 dotnet restore ClipSync.sln
 
-# Debug build
+# Build Debug
 dotnet build ClipSync.sln -c Debug
 
 # Run
 dotnet run --project src/ClipSync.App/ClipSync.App.csproj
 
-# Publish self-contained single file (x64 shown)
+# Publish self-contained single-file (x64 example)
 dotnet publish src/ClipSync.App/ClipSync.App.csproj `
   -c Release -r win-x64 --self-contained true `
   -p:PublishSingleFile=true `
@@ -149,13 +159,13 @@ dotnet publish src/ClipSync.App/ClipSync.App.csproj `
 
 ### Visual Studio
 
-Open `ClipSync.sln` in Visual Studio 2022 17.8+ and press F5.
+Open `ClipSync.sln` with Visual Studio 2022 17.8+ and press F5 to debug.
 
-### Building the installer (optional)
+### Build the Installer (Optional)
 
 1. Install [Inno Setup 6](https://jrsoftware.org/isdl.php)
-2. Run `dotnet publish` for x64 and/or arm64 first
-3. From the repo root:
+2. Run the `dotnet publish` steps above first (x64 and/or arm64)
+3. From the repo root, run:
 
 ```powershell
 # x64
@@ -164,38 +174,37 @@ Open `ClipSync.sln` in Visual Studio 2022 17.8+ and press F5.
 & "C:\Program Files (x86)\Inno Setup 6\ISCC.exe" "installer\ClipSync.iss" /DArch=arm64
 ```
 
-Output: `installer/Output/ClipSync-Setup-<ver>-win-<arch>.exe`.
+The output appears at `installer/Output/ClipSync-Setup-<version>-win-<arch>.exe`.
 
 ---
 
 ## 🔐 Privacy & Security
 
 | Aspect | Design |
-|--------|--------|
-| Transport | Goes through your own server; no third parties |
-| Server storage | None — messages are routed, never persisted |
-| Client storage | `%APPDATA%\ClipSync\` |
-| Config | `settings.json` (token + credentials, local only) |
-| History | `history.json` (last 500 messages; clearable from the app) |
-| Logs | `logs/clipsync-YYYY-MM-DD.log` (daily rotation) |
-| E2E encryption | AES-256-GCM; key derived from your sync password via PBKDF2-HMAC-SHA256 (200k iterations), never leaves the device |
-| Permission scope | Clipboard + network only — no browser, no filesystem access |
-| Production tip | Put Nginx/Caddy in front for TLS (`wss://`) |
+|------|------|
+| Data in transit | Goes through your own server; no third parties involved |
+| Data storage | The server stores nothing; Windows data lives under `%APPDATA%\ClipSync\` |
+| Config file | `settings.json` (contains token and password; stored locally) |
+| History | `history.json` (latest 500 entries; can be cleared from within the app) |
+| Logs | `logs/clipsync-YYYY-MM-DD.log` (daily rolling) |
+| End-to-end encryption | AES-256-GCM; key derived from the sync password via PBKDF2-HMAC-SHA256 (200,000 iterations), kept only on the local machine |
+| Least privilege | Does not read the browser or file system; only clipboard and network access are used |
+| Production advice | Reverse-proxy with Nginx/Caddy and add TLS, use `wss://` |
 
 ---
 
 ## 🐛 Troubleshooting
 
 | Symptom | What to check |
-|---------|---------------|
-| Double-click does nothing | See `%APPDATA%\ClipSync\startup-trace.log` and `crash.log` |
-| Cannot connect | Verify address/port, firewall, and that the server is running; prefer `ws://IP:port` over `localhost` |
-| Messages arrive but can't be decrypted | Sync passwords differ across devices, or one side has E2EE off; check the "decrypt failure" hint on the home page |
-| Clipboard not syncing | Make sure "Auto sync clipboard" is on; Windows clipboard history may interfere |
-| Images not showing | Check the "Show message content" toggle; long edges are compressed to 1600px |
-| Multiple windows open | Check Task Manager for a leftover `ClipSync.App.exe` process |
+|------|------|
+| Double-click does nothing | Check `%APPDATA%\ClipSync\startup-trace.log` and `crash.log` |
+| Cannot connect to server | Check address/port, firewall and whether the server is running; prefer `ws://IP:port` over `localhost` |
+| Message received but can't be decrypted | The "sync password" differs between ends, or one side has E2EE disabled; see the "decryption failed" hint on the home page |
+| Clipboard not syncing | Make sure the "auto-sync clipboard" toggle is on; Windows 10/11 clipboard history may intercept |
+| Images don't show | Check the "show message content" toggle; the longest edge of images is compressed to 1600px |
+| Multiple windows open repeatedly | Check Task Manager for leftover `ClipSync.App.exe` processes |
 
-Logs: `%APPDATA%\ClipSync\logs\`  
+Log location: `%APPDATA%\ClipSync\logs\`  
 Startup trace: `%APPDATA%\ClipSync\startup-trace.log`  
 Crash log: `%APPDATA%\ClipSync\crash.log`
 
@@ -204,27 +213,29 @@ Crash log: `%APPDATA%\ClipSync\crash.log`
 ## 🛣️ Roadmap
 
 - [ ] Dark theme
-- [ ] Global hotkey (push current clipboard with one keystroke)
-- [ ] File / folder sync
-- [ ] Startup entry self-check and repair
-- [ ] Auto-updater (Squirrel / Velopack)
+- [ ] Global hotkey (push current clipboard with one shortcut)
+- [ ] File/folder sync
+- [ ] Self-check & repair for Windows auto-start status
+- [ ] Auto-update (Squirrel / Velopack)
 
 ---
 
 ## 🤝 Related Projects
 
 | Project | Stack | Link |
-|---------|-------|------|
+|------|--------|------|
 | Server | Go + gorilla/websocket | [JH-Clipsync/ClipSync-Server](https://github.com/JH-Clipsync/ClipSync-Server) |
-| macOS client | Swift + SwiftUI | [JH-Clipsync/ClipSync-Mac](https://github.com/JH-Clipsync/ClipSync-Mac) |
-| Android client | Kotlin + OkHttp | [JH-Clipsync/ClipSync-Android](https://github.com/JH-Clipsync/ClipSync-Android) |
+| Admin Backend | Go + Gin + GORM | [JH-Clipsync/ClipSync-Admin](https://github.com/JH-Clipsync/ClipSync-Admin) |
+| Admin Console Frontend | Vue 3 + Vite + Element Plus | [JH-Clipsync/ClipSync-Admin-Web](https://github.com/JH-Clipsync/ClipSync-Admin-Web) |
+| macOS Client | Swift + SwiftUI | [JH-Clipsync/ClipSync-Mac](https://github.com/JH-Clipsync/ClipSync-Mac) |
+| Android Client | Kotlin + OkHttp | [JH-Clipsync/ClipSync-Android](https://github.com/JH-Clipsync/ClipSync-Android) |
 
 ---
 
 ## 📄 License
 
-Personal project — feel free to study, fork, and modify.
+A personal, self-use project. Feel free to reference and modify the code.
 
 ---
 
-**Made with ❤️ · Fully self-built across all platforms · Your data stays yours**
+**Made with ❤️ · All three platforms built in-house · Your privacy stays yours**

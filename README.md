@@ -81,14 +81,15 @@ ClipSync 是一套自建的跨端消息同步工具。本仓库是 Windows 桌�
 ClipSync-Windows/
 ├── src/
 │   ├── ClipSync.Core/              # 跨平台核心（协议/加密/网络/存储）
-│   │   ├── Crypto/                 # AES-256-GCM + PBKDF2，带密钥缓存
-│   │   ├── Net/                    # WSClient / AuthClient / ServerAddress
-│   │   ├── Protocol/               # SyncMessage / MessagePayload / 验证码提取
+│   │   ├── Crypto/                 # AES-256-GCM + PBKDF2（E2EECrypto / PayloadCipher）
+│   │   ├── Net/                    # WSClient / AuthClient / ServerAddress / ConnectionState
+│   │   ├── Protocol/               # Models（SyncMessage / MessagePayload）+ SmsCodeExtractor
 │   │   ├── Storage/                # SettingsStore / HistoryStore / AppPaths
-│   │   └── Diagnostics/            # 按天滚动日志
+│   │   └── Diagnostics/            # 按天滚动日志（Log）
 │   └── ClipSync.App/               # WPF 客户端
 │       ├── App.xaml / App.xaml.cs  # 入口（单实例、托盘、Dispatcher 注入）
 │       ├── MainWindow.xaml(.cs)    # 主窗口（左侧导航 + 内容区）
+│       ├── GlobalUsings.cs         # 全局 using
 │       ├── Services/
 │       │   ├── ClipboardMonitor.cs # 600ms 轮询监听 + 图片压缩 + 双重去重
 │       │   ├── ClipboardWriter.cs  # 远端消息写入本机剪贴板
@@ -99,8 +100,17 @@ ClipSync-Windows/
 │       │   ├── SettingsView.cs     # 设置页
 │       │   ├── OnboardingWizard.cs # 首次启动引导
 │       │   ├── ToastWindow.xaml(.cs) # 右上角通知横幅
-│       │   └── ToastManager.cs     # 多条 Toast 堆叠管理
-│       └── Resources/app.ico
+│       │   ├── InfoToastWindow.xaml.cs # 信息类 Toast（验证码快捷按钮等）
+│       │   ├── ToastManager.cs     # 多条 Toast 堆叠管理
+│       │   ├── ImagePreviewWindow.xaml.cs # 图片查看器
+│       │   ├── AppColors.cs        # 全局配色
+│       │   ├── AppDialog.cs        # 通用对话框
+│       │   ├── PasswordInput.cs    # 密码输入控件
+│       │   ├── FocusBehavior.cs    # 自动获取焦点附加行为
+│       │   └── SmsPayloadSanitizer.cs # 短信消息清洗/脱敏
+│       └── Resources/
+│           ├── app.png             # 应用图标（PNG，README/通知用）
+│           └── app.ico             # 应用图标（ICO，窗口/托盘用）
 ├── installer/
 │   ├── ClipSync.iss                # Inno Setup 安装包脚本（中文/英文向导）
 │   └── assets/
@@ -215,6 +225,8 @@ dotnet publish src/ClipSync.App/ClipSync.App.csproj `
 | 项目 | 技术栈 | 链接 |
 |------|--------|------|
 | 服务端 | Go + gorilla/websocket | [JH-Clipsync/ClipSync-Server](https://github.com/JH-Clipsync/ClipSync-Server) |
+| 管理后端 | Go + Gin + GORM | [JH-Clipsync/ClipSync-Admin](https://github.com/JH-Clipsync/ClipSync-Admin) |
+| 管理后台前端 | Vue 3 + Vite + Element Plus | [JH-Clipsync/ClipSync-Admin-Web](https://github.com/JH-Clipsync/ClipSync-Admin-Web) |
 | macOS 客户端 | Swift + SwiftUI | [JH-Clipsync/ClipSync-Mac](https://github.com/JH-Clipsync/ClipSync-Mac) |
 | Android 客户端 | Kotlin + OkHttp | [JH-Clipsync/ClipSync-Android](https://github.com/JH-Clipsync/ClipSync-Android) |
 

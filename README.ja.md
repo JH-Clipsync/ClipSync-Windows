@@ -1,11 +1,11 @@
 <p align="center">
-  <img src="src/ClipSync.App/Resources/app.png" width="128" alt="ClipSync ロゴ"/>
+  <img src="src/ClipSync.App/Resources/app.png" width="128" alt="ClipSync アイコン"/>
 </p>
 
 <h1 align="center">ClipSync for Windows</h1>
 
 <p align="center">
-  <b>スマホの認証コード & クリップボード → Windows にポップアップ、ワンクリックでコピー。</b><br/>
+  <b>スマホの認証コード＆クリップボード → Windows のポップアップ、ワンクリックでコピー。</b><br/>
   <a href="README.md">简体中文</a> ·
   <a href="README.en.md">English</a> ·
   <a href="README.ja.md">日本語</a>
@@ -13,65 +13,65 @@
 
 ---
 
-ClipSync は、セルフホスト型のクロスデバイスメッセージ同期ツールです。このリポジトリは Windows デスクトップクライアントで、**.NET 8 + WPF (C#)** で開発されています。
+ClipSync は、自己ホスト型のクロスプラットフォームメッセージ同期ツールです。本リポジトリは Windows デスクトップクライアントで、**.NET 8 + WPF (C#)** で開発されています。
 
-主なユースケース：**スマホで認証コードを受信したりコンテンツをコピーしたりすると、Windows の画面右上にトーストが即座に表示され、ワンクリックでクリップボードへコピーできます。逆に Windows でコピーした内容も、他のデバイスへリアルタイムで同期されます。**
+主なユースケース：**スマホで認証コードを受信したりコンテンツをコピーしたりすると、Windows 上で即座にポップアップが表示され、ワンクリックでクリップボードにコピーできます。逆に Windows でコピーした内容も、リアルタイムで他のデバイスに同期されます。**
 
-サードパーティのプッシュサービスには一切依存しません。通信はすべて自分で立てた WebSocket 中継サーバーを通り、エンドツーエンド暗号化もオプションで選択できるため、プライバシーは自分で管理できます。
+サードパーティのプッシュサービスには依存せず、通信はすべて自分で用意した WebSocket 中継サーバー経由で行われ、エンドツーエンド暗号化も任意で有効化できるため、プライバシーは自分自身で管理できます。
 
 ---
 
 ## ✨ 主な機能
 
-| 分類 | 内容 |
+| モジュール | 説明 |
 |------|------|
-| 📩 **SMS 認証コードのポップアップ** | スマホが認証コードを受信すると、Windows の右上にトーストが表示され、「コードをコピー」「全文をコピー」ボタンでワンクリックコピー |
-| 📋 **双方向クリップボード同期** | この PC でコピーしたテキスト/画像を自動アップロード。他のデバイスでコピーした内容はローカルのクリップボードへ自動書き込み |
-| 🛡️ **オプションの E2E 暗号化** | AES-256-GCM、PBKDF2-HMAC-SHA256（20 万回反復）。サーバーには暗号文しか見えません |
-| 🔔 **トースト通知** | フォーカスを奪わず、5 秒で自動消灯、最大 3 枚までスタック。認証コードを自動検出して専用ボタンを表示 |
-| 🖥️ **トレイ常駐** | メインウィンドウを閉じるとシステムトレイに格納。左クリックで復帰、右クリックでメニュー |
-| 👥 **オンライン端末一覧** | 同じアカウントで接続中の端末、プラットフォーム、IP、同期機能をリアルタイムに表示 |
-| 🚀 **スタートアップ起動** | インストーラーまたはアプリ内のワンクリックで `HKCU\...\Run` に登録 |
-| 🧭 **初回起動ウィザード** | サーバーアドレス、アカウント情報、E2E 暗号化をまとめてガイド |
-| 📜 **履歴** | 直近 500 件をローカルに保存。コピー/削除/カテゴリフィルタに対応 |
-| 🔄 **自動再接続** | ネットワーク切断時に自動再接続。トークン失効時は保存済みの認証情報で自動的に再取得 |
-| 🔒 **シングルインスタンス** | グローバル Mutex で二重起動を防止。再度起動すると既存ウィンドウが前面に表示 |
+| 📩 **SMS 認証コードポップアップ** | スマホが認証コードを受信すると、Windows の右上に通知が即座に表示。コードまたは全文をワンクリックでコピー |
+| 📋 **クリップボード双方向同期** | ローカルでコピーしたテキスト/画像を自動アップロード。他のデバイスでコピーした内容をローカルのクリップボードに自動書き込み |
+| 🛡️ **エンドツーエンド暗号化（任意）** | AES-256-GCM 暗号、PBKDF2-HMAC-SHA256（20万回）で鍵導出。サーバーは暗号文を転送するだけ |
+| 🔔 **Toast 通知バナー** | フォーカスを奪わず、5秒で自動消滅、最大3件までスタック。認証コードはスマート検出され専用ボタンを表示 |
+| 🖥️ **トレイ常駐** | メインウィンドウを閉じるとシステムトレイに格納。左クリックで復帰、右クリックでメニュー。トレイへの最小化に対応 |
+| 👥 **オンラインデバイス一覧** | ホーム画面に同じアカウントのオンラインデバイス、プラットフォーム、IP、同期機能をリアルタイム表示 |
+| 🚀 **自動起動** | インストーラーとアプリ内のどちらからでもワンクリックで自動起動を有効化（`HKCU\...\Run` に書き込み） |
+| 🧭 **初回起動ウィザード** | サーバーアドレス、アカウント/パスワード、エンドツーエンド暗号化の設定をステップバイステップで案内 |
+| 📜 **履歴** | 最新 500 件のメッセージをローカルに永続化。検索、コピー、削除、カテゴリフィルタに対応 |
+| 🔄 **自動再接続** | ネットワークの揺らぎで自動再接続。トークンが失効した場合はローカル保存のアカウント/パスワードで再取得 |
+| 🔒 **シングルインスタンス** | Global Mutex でガード。重ねて開くと既に実行中のメインウィンドウが前面に表示 |
 
 ---
 
-## 🖼️ UI 概要
+## 🖼️ 画面プレビュー
 
 | ホーム | SMS 履歴 | クリップボード履歴 |
-|--------|----------|--------------------|
-| 接続状態、アカウント、暗号化、同期トグル、オンライン端末、最新メッセージ | 時系列順、「コードをコピー」/削除に対応 | テキストと画像のプレビュー、コピー/削除 |
+|------|----------|------------|
+| 接続状態、アカウント、暗号化、同期スイッチ、オンラインデバイス、最近のメッセージ | 新しい順に表示。認証コードのコピー/削除に対応 | テキストと画像のプレビュー。コピー/削除に対応 |
 
 ---
 
 ## 📦 ダウンロードとインストール
 
-[GitHub Releases](https://github.com/JH-Clipsync/ClipSync-Windows/releases) から環境に合ったビルドをダウンロードしてください。
+[GitHub Releases](https://github.com/JH-Clipsync/ClipSync-Windows/releases) から、お使いのアーキテクチャに合ったファイルをダウンロードしてください：
 
 | ファイル | 用途 |
-|----------|------|
-| `ClipSync-Setup-<バージョン>-win-x64.exe` | ほとんどの Intel/AMD 64bit Windows PC（推奨） |
-| `ClipSync-Setup-<バージョン>-win-arm64.exe` | Surface Pro X、Snapdragon 搭載 PC など ARM64 デバイス |
-| `ClipSync-<バージョン>-win-x64.zip` | ポータブル版（解凍してすぐ実行、レジストリ不使用） |
+|------|----------|
+| `ClipSync-Setup-<バージョン>-win-x64.exe` | ほとんどの Intel/AMD 64ビット Windows PC（推奨） |
+| `ClipSync-Setup-<バージョン>-win-arm64.exe` | Surface Pro X、Snapdragon 搭載ノートなど ARM64 デバイス |
+| `ClipSync-<バージョン>-win-x64.zip` | ポータブル版（解凍してすぐ使える、レジストリ書き込みなし） |
 
-> インストーラーは**セルフコンテインド**です。.NET 8 ランタイムが同梱されているため、**別途 .NET をインストールする必要はありません**。既定の「現在のユーザーのみ」モードでは `%LocalAppData%\Programs\ClipSync` に管理者権限なしでインストールされます。
+> インストーラーは**セルフコンテインドデプロイ**で、.NET 8 ランタイムを同梱しているため、**インストール先のマシンに別途 .NET をインストールする必要はありません**。既定では現在のユーザー向けに `%LocalAppData%\Programs\ClipSync` へインストールされ、管理者権限は不要です。
 
-動作要件：**Windows 10 1809 (17763) 以降 / Windows 11**。
+システム要件：**Windows 10 1809 (17763) 以降 / Windows 11**。
 
 ---
 
 ## 🚀 クイックスタート
 
-1. ClipSync をインストールして起動
-2. 初回はウィザードが表示されます：
-   - **サーバーアドレス**（例: `192.168.1.10:8080`、`ws://` / `wss://` に対応）
-   - 管理者から発行された**ユーザー名 / パスワード**（初回接続時に自動でトークンを取得）
-   - **エンドツーエンド暗号化**を有効にして同期パスワードを設定（端末間で一致する必要あり）
-3. 「接続」をクリック。トレイアイコンが緑になれば接続完了
-4. スマホ版（[ClipSync-Android](https://github.com/JH-Clipsync/ClipSync-Android)）で同じアカウントを使ってサインインすれば同期開始
+1. ClipSync をインストールして起動します
+2. 初回起動時はオンボーディングウィザードが開きます：
+   - **サーバーアドレス**を入力（例: `192.168.1.10:8080`、`ws://` / `wss://` に対応）
+   - 管理者から割り当てられた**ユーザー名 / パスワード**を入力（初回接続時に自動的に token と交換されます）
+   - **エンドツーエンド暗号化**を有効にするか選択し、同期パスワードを入力（両端で一致する必要があります）
+3. 「接続」をクリック — トレイアイコンが緑色になれば接続成功です
+4. スマホ側（[ClipSync-Android](https://github.com/JH-Clipsync/ClipSync-Android)）に同じアカウントを設定すれば、同期が始まります
 
 ---
 
@@ -80,31 +80,41 @@ ClipSync は、セルフホスト型のクロスデバイスメッセージ同�
 ```
 ClipSync-Windows/
 ├── src/
-│   ├── ClipSync.Core/              # クロスプラットフォーム基盤（プロトコル/暗号/ネット/ストレージ）
-│   │   ├── Crypto/                 # AES-256-GCM + PBKDF2、キーキャッシュ付き
-│   │   ├── Net/                    # WSClient / AuthClient / ServerAddress
-│   │   ├── Protocol/               # SyncMessage / MessagePayload / 認証コード抽出
+│   ├── ClipSync.Core/              # クロスプラットフォームコア（プロトコル/暗号/ネットワーク/ストレージ）
+│   │   ├── Crypto/                 # AES-256-GCM + PBKDF2（E2EECrypto / PayloadCipher）
+│   │   ├── Net/                    # WSClient / AuthClient / ServerAddress / ConnectionState
+│   │   ├── Protocol/               # Models（SyncMessage / MessagePayload）+ SmsCodeExtractor
 │   │   ├── Storage/                # SettingsStore / HistoryStore / AppPaths
-│   │   └── Diagnostics/            # 日次ローテーションのファイルログ
+│   │   └── Diagnostics/            # 日次ローテーションログ（Log）
 │   └── ClipSync.App/               # WPF クライアント
-│       ├── App.xaml / App.xaml.cs  # エントリ（シングルインスタンス、トレイ、Dispatcher）
-│       ├── MainWindow.xaml(.cs)    # メインウィンドウ（左ナビ + コンテンツ領域）
+│       ├── App.xaml / App.xaml.cs  # エントリ（シングルインスタンス、トレイ、Dispatcher 注入）
+│       ├── MainWindow.xaml(.cs)    # メインウィンドウ（左ナビ + コンテンツエリア）
+│       ├── GlobalUsings.cs         # グローバル using
 │       ├── Services/
-│       │   ├── ClipboardMonitor.cs # 600ms ポーリング + 画像圧縮 + 重複除去
-│       │   ├── ClipboardWriter.cs  # リモートペイロードをローカルクリップボードへ書き込み
-│       │   └── AutoStartService.cs # スタートアップ起動（レジストリ）
+│       │   ├── ClipboardMonitor.cs # 600ms ポーリング監視 + 画像圧縮 + 2段階重複除去
+│       │   ├── ClipboardWriter.cs  # リモートメッセージをローカルクリップボードに書き込み
+│       │   └── AutoStartService.cs # 自動起動（レジストリ）
 │       ├── UI/
-│       │   ├── HomeView.cs         # ホーム（状態、端末一覧、最新メッセージ）
+│       │   ├── HomeView.cs         # ホーム（ステータスカード + オンラインデバイス + 最近のメッセージ）
 │       │   ├── HistoryView.cs      # SMS / クリップボード履歴
 │       │   ├── SettingsView.cs     # 設定ページ
-│       │   ├── OnboardingWizard.cs # 初回起動ウィザード
-│       │   ├── ToastWindow.xaml(.cs) # 右上トースト
-│       │   └── ToastManager.cs     # トーストのスタック管理
-│       └── Resources/app.ico
+│       │   ├── OnboardingWizard.cs # 初回起動ガイド
+│       │   ├── ToastWindow.xaml(.cs) # 右上の通知バナー
+│       │   ├── InfoToastWindow.xaml.cs # 情報系 Toast（認証コードのクイックボタンなど）
+│       │   ├── ToastManager.cs     # 複数 Toast のスタック管理
+│       │   ├── ImagePreviewWindow.xaml.cs # 画像ビューア
+│       │   ├── AppColors.cs        # グローバル配色
+│       │   ├── AppDialog.cs        # 共通ダイアログ
+│       │   ├── PasswordInput.cs    # パスワード入力コントロール
+│       │   ├── FocusBehavior.cs    # オートフォーカス添付ビヘイビア
+│       │   └── SmsPayloadSanitizer.cs # SMS メッセージのクリーニング/マスキング
+│       └── Resources/
+│           ├── app.png             # アプリアイコン（PNG、README/通知用）
+│           └── app.ico             # アプリアイコン（ICO、ウィンドウ/トレイ用）
 ├── installer/
-│   ├── ClipSync.iss                # Inno Setup インストーラースクリプト（中/英ウィザード）
+│   ├── ClipSync.iss                # Inno Setup インストーラースクリプト（中国語/英語ウィザード）
 │   └── assets/
-└── .github/workflows/release.yml   # GitHub Actions: x64/arm64 自動リリース
+└── .github/workflows/release.yml   # GitHub Actions：x64/arm64 デュアルアーキテクチャ自動リリース
 ```
 
 ### 技術スタック
@@ -112,8 +122,8 @@ ClipSync-Windows/
 - **.NET 8** + **WPF**（`net8.0-windows`）
 - **C# 12**、`Nullable` と `ImplicitUsings` を有効化
 - `System.Drawing.Common` / `Microsoft.Windows.Compatibility`（クリップボード画像 + トレイアイコン）
-- JSON シリアライズ: `System.Text.Json`（リフレクションなし）
-- インストーラー: [Inno Setup 6](https://jrsoftware.org/isinfo.php)
+- JSON シリアライズ：`System.Text.Json`（ソースジェネレータ対応、リフレクションなし）
+- インストーラー：[Inno Setup 6](https://jrsoftware.org/isinfo.php)
 
 ---
 
@@ -121,13 +131,13 @@ ClipSync-Windows/
 
 ### 前提条件
 
-- [.NET 8 SDK](https://dotnet.microsoft.com/download/dotnet/8.0)
-- Windows 10/11（WPF のビルドには Windows が必要です）
+- [.NET 8 SDK](https://dotnet.microsoft.com/zh-cn/download/dotnet/8.0)
+- Windows 10/11（WPF は Windows 上でビルドする必要があります）
 
 ### コマンドライン
 
 ```powershell
-# 依存関係の復元
+# 依存関係を復元
 dotnet restore ClipSync.sln
 
 # Debug ビルド
@@ -136,7 +146,7 @@ dotnet build ClipSync.sln -c Debug
 # 実行
 dotnet run --project src/ClipSync.App/ClipSync.App.csproj
 
-# セルフコンテインド単一ファイルとして発行（x64 の場合）
+# セルフコンテインド単一ファイルとして発行（x64 の例）
 dotnet publish src/ClipSync.App/ClipSync.App.csproj `
   -c Release -r win-x64 --self-contained true `
   -p:PublishSingleFile=true `
@@ -149,13 +159,13 @@ dotnet publish src/ClipSync.App/ClipSync.App.csproj `
 
 ### Visual Studio
 
-Visual Studio 2022 17.8 以降で `ClipSync.sln` を開き、F5 を押してください。
+Visual Studio 2022 17.8 以降で `ClipSync.sln` を開き、F5 でデバッグ実行します。
 
 ### インストーラーのビルド（任意）
 
 1. [Inno Setup 6](https://jrsoftware.org/isdl.php) をインストール
-2. 先に上記の `dotnet publish` を x64 / arm64 に対して実行
-3. リポジトリのルートで以下を実行：
+2. 先に上記の `dotnet publish` を実行します（x64 および/または arm64）
+3. リポジトリルートで以下を実行します：
 
 ```powershell
 # x64
@@ -164,7 +174,7 @@ Visual Studio 2022 17.8 以降で `ClipSync.sln` を開き、F5 を押してく�
 & "C:\Program Files (x86)\Inno Setup 6\ISCC.exe" "installer\ClipSync.iss" /DArch=arm64
 ```
 
-出力先: `installer/Output/ClipSync-Setup-<バージョン>-win-<アーキテクチャ>.exe`
+成果物は `installer/Output/ClipSync-Setup-<バージョン>-win-<アーキテクチャ>.exe` に出力されます。
 
 ---
 
@@ -172,50 +182,51 @@ Visual Studio 2022 17.8 以降で `ClipSync.sln` を開き、F5 を押してく�
 
 | 項目 | 設計 |
 |------|------|
-| 通信 | 自分で用意したサーバー経由。サードパーティ不使用 |
-| サーバー側の保存 | なし — メッセージはルーティングのみで永続化されません |
-| クライアント保存先 | `%APPDATA%\ClipSync\` |
-| 設定 | `settings.json`（トークン/認証情報、ローカルのみ） |
-| 履歴 | `history.json`（直近 500 件、アプリから消去可能） |
+| データ通信 | 自分のサーバー経由で送受信。第三者を介さない |
+| データ保存 | サーバーはデータを保存しない。Windows 側のデータは `%APPDATA%\ClipSync\` に保存 |
+| 設定ファイル | `settings.json`（token とパスワードを含む、ローカル保存） |
+| 履歴 | `history.json`（最新 500 件。アプリ内から消去可能） |
 | ログ | `logs/clipsync-YYYY-MM-DD.log`（日次ローテーション） |
-| E2E 暗号化 | AES-256-GCM。鍵は同期パスワードから PBKDF2-HMAC-SHA256（20 万回）で導出、端末から外に出ません |
-| 権限 | クリップボードとネットワークのみ。ブラウザやファイルシステムへのアクセスなし |
-| 本番環境の推奨 | Nginx / Caddy で TLS（`wss://`）を終端 |
+| エンドツーエンド暗号化 | AES-256-GCM。鍵は同期パスワードから PBKDF2-HMAC-SHA256（20万回）で導出し、ローカルのみに保持 |
+| 最小権限 | ブラウザやファイルシステムは読み取らず、クリップボードとネットワークのみ使用 |
+| 本番環境の推奨 | Nginx/Caddy でリバースプロキシ + TLS を構成し、`wss://` を使用 |
 
 ---
 
 ## 🐛 トラブルシューティング
 
-| 症状 | 確認ポイント |
-|------|--------------|
-| ダブルクリックしても何も起きない | `%APPDATA%\ClipSync\startup-trace.log` と `crash.log` を確認 |
-| サーバーに接続できない | アドレス/ポート、ファイアウォール、サーバー起動状態を確認。`localhost` より `ws://IP:ポート` を推奨 |
-| メッセージは届くが復号できない | 端末間の「同期パスワード」が不一致、または片方が E2E オフ。ホームの「復号失敗」ヒントを確認 |
-| クリップボードが同期されない | 「クリップボードを自動同期」がオンになっているか確認。Windows のクリップボード履歴が干渉する場合あり |
-| 画像が表示されない | 「メッセージ内容を表示」がオンか確認。長辺は 1600px に圧縮されます |
-| ウィンドウが複数開く | タスクマネージャーに残存する `ClipSync.App.exe` を確認 |
+| 現象 | 確認事項 |
+|------|------|
+| ダブルクリックしても反応しない | `%APPDATA%\ClipSync\startup-trace.log` と `crash.log` を確認 |
+| サーバーに接続できない | アドレス/ポート、ファイアウォール、サーバーが起動しているか確認。`localhost` ではなく `ws://IP:ポート` を推奨 |
+| メッセージを受信するが復号できない | 両端の「同期パスワード」が一致しない、または片方が E2EE 無効。ホームの「復号失敗」表示を確認 |
+| クリップボードが同期しない | 「クリップボードを自動同期」スイッチがオンになっているか確認。Windows 10/11 のクリップボード履歴が干渉する可能性あり |
+| 画像が表示されない | 「メッセージ内容を表示」スイッチを確認。画像は長辺が 1600px に圧縮されます |
+| ウィンドウが重複して開く | タスクマネージャーに残存する `ClipSync.App.exe` プロセスがないか確認 |
 
-ログ: `%APPDATA%\ClipSync\logs\`  
-起動トレース: `%APPDATA%\ClipSync\startup-trace.log`  
-クラッシュログ: `%APPDATA%\ClipSync\crash.log`
+ログの場所：`%APPDATA%\ClipSync\logs\`  
+起動トレース：`%APPDATA%\ClipSync\startup-trace.log`  
+クラッシュログ：`%APPDATA%\ClipSync\crash.log`
 
 ---
 
-## 🛣️ 今後の予定
+## 🛣️ Roadmap
 
 - [ ] ダークテーマ
-- [ ] グローバルホットキー（ワンキーで現在のクリップボードを送信）
-- [ ] ファイル / フォルダ同期
-- [ ] スタートアップ項目の自己診断と修復
-- [ ] 自動アップデーター（Squirrel / Velopack）
+- [ ] グローバルホットキー（ショートカット一発で現在のクリップボードをプッシュ）
+- [ ] ファイル/フォルダ同期
+- [ ] Windows 自動起動状態の自己診断と修復
+- [ ] 自動更新（Squirrel / Velopack）
 
 ---
 
 ## 🤝 関連プロジェクト
 
 | プロジェクト | 技術スタック | リンク |
-|--------------|--------------|--------|
+|------|--------|------|
 | サーバー | Go + gorilla/websocket | [JH-Clipsync/ClipSync-Server](https://github.com/JH-Clipsync/ClipSync-Server) |
+| 管理バックエンド | Go + Gin + GORM | [JH-Clipsync/ClipSync-Admin](https://github.com/JH-Clipsync/ClipSync-Admin) |
+| 管理コンソールフロント | Vue 3 + Vite + Element Plus | [JH-Clipsync/ClipSync-Admin-Web](https://github.com/JH-Clipsync/ClipSync-Admin-Web) |
 | macOS クライアント | Swift + SwiftUI | [JH-Clipsync/ClipSync-Mac](https://github.com/JH-Clipsync/ClipSync-Mac) |
 | Android クライアント | Kotlin + OkHttp | [JH-Clipsync/ClipSync-Android](https://github.com/JH-Clipsync/ClipSync-Android) |
 
@@ -223,8 +234,8 @@ Visual Studio 2022 17.8 以降で `ClipSync.sln` を開き、F5 を押してく�
 
 ## 📄 License
 
-個人利用のプロジェクトです。自由に学習、フォーク、改変いただけます。
+個人利用のプロジェクトです。コードは自由に参考・改変いただけます。
 
 ---
 
-**Made with ❤️ · 全プラットフォーム自前実装 · あなたのデータはあなたのもの**
+**Made with ❤️ · 3 クライアントすべて自作 · プライバシーはあなた自身のもの**

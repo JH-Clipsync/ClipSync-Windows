@@ -307,7 +307,7 @@ public sealed class AppDialog : Window
         _ => "ℹ️",
     };
 
-    private static Button MakeButton(string text, Brush bg, bool isPrimary)
+    private static Button MakeButton(string text, System.Windows.Media.Brush bg, bool isPrimary)
     {
         var hoverColor = isPrimary
             ? ModifyColor(((SolidColorBrush)bg).Color, 0.92)

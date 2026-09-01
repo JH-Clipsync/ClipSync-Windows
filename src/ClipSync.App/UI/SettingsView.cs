@@ -47,6 +47,8 @@ public sealed class SettingsView : System.Windows.Controls.UserControl
         col.Children.Add(BuildGroup("端到端加密", BuildEncryptionSection()));
         col.Children.Add(BuildSpacer(18));
         col.Children.Add(BuildGroup("同步与行为", BuildBehaviorSection()));
+        col.Children.Add(BuildSpacer(18));
+        col.Children.Add(BuildGroup("关于", BuildAboutSection()));
         col.Children.Add(BuildSpacer(20));
 
         // 底部操作栏：保存按钮（右对齐）+ 保存提示（左对齐）
@@ -263,6 +265,50 @@ public sealed class SettingsView : System.Windows.Controls.UserControl
         panel.Children.Add(_minimizeToTrayToggle);
         _autoStartToggle = BuildCheck("开机自动启动", "登录 Windows 后后台自动运行");
         panel.Children.Add(_autoStartToggle);
+        return panel;
+    }
+
+    private FrameworkElement BuildAboutSection()
+    {
+        var panel = new StackPanel { Margin = new Thickness(0, 4, 0, 0) };
+
+        // 版本号：优先读运行中 exe 的文件版本（单文件发布下也准确，
+        // CI 打包时由 Directory.Build.props 的 Version 注入）；
+        // 取不到再退回程序集版本；都没有给兜底，避免显示空白。
+        var version = "未知";
+        try
+        {
+            var exePath = System.Diagnostics.Process.GetCurrentProcess().MainModule?.FileName;
+            if (!string.IsNullOrEmpty(exePath))
+            {
+                var fv = System.Diagnostics.FileVersionInfo.GetVersionInfo(exePath);
+                if (!string.IsNullOrWhiteSpace(fv.FileVersion))
+                {
+                    version = fv.FileVersion.Trim();
+                }
+            }
+        }
+        catch { }
+        if (version == "未知")
+        {
+            var asmVer = System.Reflection.Assembly.GetExecutingAssembly().GetName().Version?.ToString();
+            if (!string.IsNullOrWhiteSpace(asmVer)) version = asmVer!;
+        }
+
+        panel.Children.Add(new TextBlock
+        {
+            Text = $"ClipSync v{version}",
+            FontSize = 13,
+            FontWeight = FontWeights.Medium,
+            Foreground = AppColors.Gray900Brush,
+        });
+        panel.Children.Add(new TextBlock
+        {
+            Text = "短信验证码 / 剪贴板同步",
+            FontSize = 11,
+            Foreground = AppColors.Gray500Brush,
+            Margin = new Thickness(0, 4, 0, 0),
+        });
         return panel;
     }
 

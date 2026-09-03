@@ -187,7 +187,6 @@ public class HomeView
             // WPF 想要 TextBlock 文本可选中可复制，必须显式开 IsTextSelectionEnabled
             // （默认 false，很多用户反馈"地址灰灰的想复制点不动"就是这个）
             IsTextSelectionEnabled = true,
-            IsReadOnly = true,  // 视觉上还是 hint 样式，不允许编辑
             Cursor = System.Windows.Input.Cursors.IBeam,
             ToolTip = "可拖选复制，或点右侧「复制」按钮",
         };

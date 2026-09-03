@@ -184,11 +184,7 @@ public class HomeView
             Foreground = new SolidColorBrush(Color.FromRgb(0x6B, 0x72, 0x80)),
             Margin = new Thickness(0, 4, 0, 0),
             FontFamily = new FontFamily("Consolas, Courier New"),
-            // WPF 想要 TextBlock 文本可选中可复制，必须显式开 IsTextSelectionEnabled
-            // （默认 false，很多用户反馈"地址灰灰的想复制点不动"就是这个）
-            IsTextSelectionEnabled = true,
-            Cursor = System.Windows.Input.Cursors.IBeam,
-            ToolTip = "可拖选复制，或点右侧「复制」按钮",
+            ToolTip = "点右侧「复制」按钮可复制完整地址",
         };
         // 复制按钮：一键把地址扔到剪贴板
         var copyBtn = new Button

@@ -19,6 +19,14 @@ Core scenario: **when you receive a verification code on your phone or copy some
 
 No third-party push services are involved — traffic goes through your own WebSocket relay, with optional end-to-end encryption, so your privacy stays under your control.
 
+## 🌐 Public Server (Pre-configured)
+
+The default `serverURL` in this client is **`wss://www.95qw.com`**. After installation, **no setup is required** — just register an account and you're in.
+
+- **Self-hosted instance?** Open *Settings → Server URL* and change it to `wss://your-domain` (no path; the reverse proxy handles the path).
+- **Fully offline / LAN?** The server is a single Go binary / Docker container. See the [ClipSync-Server deployment guide](https://github.com/JH-Clipsync/ClipSync-Server#-reverse-proxy--path-planning).
+
+
 ---
 
 ## ✨ Core Features
@@ -29,7 +37,7 @@ No third-party push services are involved — traffic goes through your own WebS
 | 📋 **Two-way clipboard sync** | Text/images copied locally are uploaded automatically; content copied on other devices is written to the local clipboard automatically |
 | 🛡️ **End-to-end encryption (optional)** | AES-256-GCM encryption with PBKDF2-HMAC-SHA256 (200,000 iterations) key derivation; the server only forwards ciphertext |
 | 🔔 **Toast banners** | Don't steal focus, auto-dismiss after 5 seconds, stack up to 3; verification codes are smart-detected and exposed via a dedicated button |
-| 🖥️ **Tray resident** | Closing the main window sends it to the system tray; left-click to restore, right-click for the menu; supports minimizing to tray |
+| 🖥️ **Tray resident** | Closing the main window sends it to the system tray; left-click to restore, right-click for the menu; supports minimizing to tray. **The server address on the status card is drag-to-selectable and has a one-click 📋 Copy button.** |
 | 👥 **Online device list** | The home page shows real-time online devices under the same account, including platform, IP and sync capabilities |
 | 🚀 **Auto-start on boot** | Enable with one click from the installer or the app (writes to `HKCU\...\Run`) |
 | 🧭 **First-run wizard** | Guides users through server address, account/password and end-to-end encryption setup in one go |

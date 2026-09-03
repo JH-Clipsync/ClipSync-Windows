@@ -184,7 +184,42 @@ public class HomeView
             Foreground = new SolidColorBrush(Color.FromRgb(0x6B, 0x72, 0x80)),
             Margin = new Thickness(0, 4, 0, 0),
             FontFamily = new FontFamily("Consolas, Courier New"),
+            // WPF 想要 TextBlock 文本可选中可复制，必须显式开 IsTextSelectionEnabled
+            // （默认 false，很多用户反馈"地址灰灰的想复制点不动"就是这个）
+            IsTextSelectionEnabled = true,
+            IsReadOnly = true,  // 视觉上还是 hint 样式，不允许编辑
+            Cursor = System.Windows.Input.Cursors.IBeam,
+            ToolTip = "可拖选复制，或点右侧「复制」按钮",
         };
+        // 复制按钮：一键把地址扔到剪贴板
+        var copyBtn = new Button
+        {
+            Content = "📋 复制",
+            FontSize = 10,
+            Padding = new Thickness(8, 2, 8, 2),
+            Margin = new Thickness(6, 4, 0, 0),
+            Background = new SolidColorBrush(Color.FromArgb(0x14, 0x63, 0x66, 0xF1)),
+            Foreground = new SolidColorBrush(Color.FromRgb(0x63, 0x66, 0xF1)),
+            BorderThickness = new Thickness(0),
+            Cursor = System.Windows.Input.Cursors.Hand,
+            VerticalAlignment = VerticalAlignment.Center,
+            ToolTip = "复制服务器地址到剪贴板",
+        };
+        copyBtn.Template = RoundCornerBtnTemplate();
+        copyBtn.Click += (_, _) =>
+        {
+            var addr = Core.Net.ServerAddress.Normalize(SettingsStore.Shared.ServerUrl);
+            if (string.IsNullOrEmpty(addr)) return;
+            try { Clipboard.SetText(addr); } catch { /* 剪贴板被占用时静默失败 */ }
+        };
+        // 把 hint 和复制按钮放进同一行
+        var hintRow = new StackPanel
+        {
+            Orientation = Orientation.Horizontal,
+            VerticalAlignment = VerticalAlignment.Center,
+        };
+        hintRow.Children.Add(hint);
+        hintRow.Children.Add(copyBtn);
         var error = new TextBlock
         {
             FontSize = 11,
@@ -221,7 +256,7 @@ public class HomeView
         errorPanel.Children.Add(goBtn);
 
         mid.Children.Add(status);
-        mid.Children.Add(hint);
+        mid.Children.Add(hintRow);
         mid.Children.Add(errorPanel);
         Grid.SetColumn(mid, 1);
         grid.Children.Add(mid);

@@ -702,6 +702,13 @@ public sealed class WSClient : INotifyPropertyChanged
     /// <summary>处理一条收到的原始 JSON 文本。</summary>
     private void Handle(string text, SettingsStore settings)
     {
+        // 应用层心跳应答帧（服务端对本机 {"type":"ping"} 单播回 {"type":"pong"}）只用于
+        // 链路探活，不进业务流：否则空 payload 会被当成业务消息弹出空白通知。
+        if (IsControlFrame(text))
+        {
+            return;
+        }
+
         // presence 消息的 payload 是 {"devices":[...]}，与业务消息的 MessagePayload 结构不同，
         // 在整体反序列化成 SyncMessage 前先单独解析并更新在线设备列表。
         if (TryHandlePresence(text))
@@ -789,6 +796,24 @@ public sealed class WSClient : INotifyPropertyChanged
         });
     }
 
+    /// <summary>是否为应用层心跳控制帧（ping/pong），这类帧不参与业务分发。</summary>
+    private static bool IsControlFrame(string text)
+    {
+        try
+        {
+            using var doc = JsonDocument.Parse(text);
+            var root = doc.RootElement;
+            if (root.ValueKind != JsonValueKind.Object) return false;
+            if (!root.TryGetProperty("type", out var typeEl)) return false;
+            var t = typeEl.GetString();
+            return t == "ping" || t == "pong";
+        }
+        catch
+        {
+            return false;
+        }
+    }
+
     /// <summary>若 JSON 是服务端下发的 presence 消息，更新在线设备列表并返回 true。</summary>
     private bool TryHandlePresence(string text)
     {
@@ -811,9 +836,11 @@ public sealed class WSClient : INotifyPropertyChanged
                 .ToDictionary(d => d.DeviceId);
             var change = new PresenceChange();
             foreach (var d in newOthers.Values)
-                if (!oldOthers.ContainsKey(d.DeviceId)) change.CameOnline.Add(d);
+                if (!oldOthers.ContainsKey(d.DeviceId) && ShouldToastPresence(d.DeviceId, "up"))
+                    change.CameOnline.Add(d);
             foreach (var d in oldOthers.Values)
-                if (!newOthers.ContainsKey(d.DeviceId)) change.WentOffline.Add(d);
+                if (!newOthers.ContainsKey(d.DeviceId) && ShouldToastPresence(d.DeviceId, "down"))
+                    change.WentOffline.Add(d);
 
             _dispatch(() =>
             {
@@ -831,6 +858,33 @@ public sealed class WSClient : INotifyPropertyChanged
         {
             Log.Warn($"[WS] presence 解析失败: {ex.Message}");
             return false;
+        }
+    }
+
+    /// <summary>上/下线通知防抖记录：key = "deviceId#up|down" → 上次弹通知时间。</summary>
+    private readonly Dictionary<string, DateTime> _lastPresenceToastAt = new();
+    /// <summary>上/下线通知防抖窗口：窗口内同设备同方向重复通知只弹一次，
+    /// 屏蔽半开看门狗重建/网络抖动导致的"设备自己反复上下线"骚扰。</summary>
+    private static readonly TimeSpan PresenceToastCooldown = TimeSpan.FromSeconds(120);
+
+    private bool ShouldToastPresence(string deviceId, string direction)
+    {
+        var key = deviceId + "#" + direction;
+        var now = DateTime.UtcNow;
+        lock (_lastPresenceToastAt)
+        {
+            if (_lastPresenceToastAt.TryGetValue(key, out var last) && now - last < PresenceToastCooldown)
+                return false;
+            _lastPresenceToastAt[key] = now;
+            if (_lastPresenceToastAt.Count > 64)
+            {
+                // 清理过期记录，避免无限增长
+                foreach (var dead in _lastPresenceToastAt
+                             .Where(kv => now - kv.Value >= PresenceToastCooldown)
+                             .Select(kv => kv.Key).ToList())
+                    _lastPresenceToastAt.Remove(dead);
+            }
+            return true;
         }
     }
 

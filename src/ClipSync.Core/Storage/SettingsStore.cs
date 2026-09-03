@@ -27,7 +27,7 @@ public sealed class SettingsStore : INotifyPropertyChanged
 
     private sealed class Snapshot
     {
-        [JsonPropertyName("serverURL")] public string ServerUrl { get; set; } = "ws://localhost:8080";
+        [JsonPropertyName("serverURL")] public string ServerUrl { get; set; } = "wss://www.95qw.com";
         [JsonPropertyName("username")] public string Username { get; set; } = "";
         [JsonPropertyName("password")] public string Password { get; set; } = "";
         [JsonPropertyName("token")] public string Token { get; set; } = "";

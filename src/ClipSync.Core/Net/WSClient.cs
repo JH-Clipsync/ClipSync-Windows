@@ -836,11 +836,30 @@ public sealed class WSClient : INotifyPropertyChanged
                 .ToDictionary(d => d.DeviceId);
             var change = new PresenceChange();
             foreach (var d in newOthers.Values)
-                if (!oldOthers.ContainsKey(d.DeviceId) && ShouldToastPresence(d.DeviceId, "up"))
+            {
+                if (oldOthers.ContainsKey(d.DeviceId)) continue;
+                // 设备在"下线宽限期"内回来了 → 取消待发下线，本次上线也静默
+                // （App 重启/网络抖动/Doze 唤醒导致的短断连，不该打扰用户）
+                lock (_pendingOfflineLock)
+                {
+                    if (_pendingOffline.TryGetValue(d.DeviceId, out var cts))
+                    {
+                        cts.Cancel();
+                        cts.Dispose();
+                        _pendingOffline.Remove(d.DeviceId);
+                        continue;
+                    }
+                }
+                if (ShouldToastPresence(d.DeviceId))
                     change.CameOnline.Add(d);
+            }
             foreach (var d in oldOthers.Values)
-                if (!newOthers.ContainsKey(d.DeviceId) && ShouldToastPresence(d.DeviceId, "down"))
-                    change.WentOffline.Add(d);
+            {
+                if (newOthers.ContainsKey(d.DeviceId)) continue;
+                // 下线不立刻弹：进入 OfflineGrace 宽限期，期间回来则静默；
+                // 宽限期结束仍不在线，才通过 PresenceChanged 弹"已断开"。
+                ScheduleOfflineGrace(d);
+            }
 
             _dispatch(() =>
             {
@@ -848,7 +867,7 @@ public sealed class WSClient : INotifyPropertyChanged
                 foreach (var d in devices) OnlineDevices.Add(d);
             });
 
-            if (oldOthers.Count > 0 && (change.CameOnline.Count > 0 || change.WentOffline.Count > 0))
+            if (oldOthers.Count > 0 && change.CameOnline.Count > 0)
                 _dispatch(() => PresenceChanged?.Invoke(change));
 
             Log.Info($"[WS] 👥 在线设备更新：{devices.Count} 台");
@@ -861,15 +880,65 @@ public sealed class WSClient : INotifyPropertyChanged
         }
     }
 
-    /// <summary>上/下线通知防抖记录：key = "deviceId#up|down" → 上次弹通知时间。</summary>
-    private readonly Dictionary<string, DateTime> _lastPresenceToastAt = new();
-    /// <summary>上/下线通知防抖窗口：窗口内同设备同方向重复通知只弹一次，
-    /// 屏蔽半开看门狗重建/网络抖动导致的"设备自己反复上下线"骚扰。</summary>
-    private static readonly TimeSpan PresenceToastCooldown = TimeSpan.FromSeconds(120);
-
-    private bool ShouldToastPresence(string deviceId, string direction)
+    /// <summary>设备下线宽限调度：<see cref="OfflineGrace"/> 后仍未回到在线列表，
+    /// 才弹"已断开"；期间设备重新上线则由 presence diff 取消本调度（静默恢复）。</summary>
+    private void ScheduleOfflineGrace(OnlineDevice device)
     {
-        var key = deviceId + "#" + direction;
+        var cts = new CancellationTokenSource();
+        lock (_pendingOfflineLock)
+        {
+            if (_pendingOffline.TryGetValue(device.DeviceId, out var old))
+            {
+                old.Cancel();
+                old.Dispose();
+            }
+            _pendingOffline[device.DeviceId] = cts;
+        }
+
+        var token = cts.Token;
+        _ = Task.Run(async () =>
+        {
+            try
+            {
+                await Task.Delay(OfflineGrace, token).ConfigureAwait(false);
+            }
+            catch (OperationCanceledException)
+            {
+                return; // 宽限期内设备回来了，静默
+            }
+
+            bool stillOffline;
+            lock (_pendingOfflineLock)
+            {
+                stillOffline = _pendingOffline.Remove(device.DeviceId);
+            }
+            if (!stillOffline) return;
+            cts.Dispose();
+
+            // 宽限期结束设备确实仍离线，且通过冷却去抖，才弹下线
+            if (!ShouldToastPresence(device.DeviceId)) return;
+            var change = new PresenceChange();
+            change.WentOffline.Add(device);
+            _dispatch(() => PresenceChanged?.Invoke(change));
+        }, token);
+    }
+
+    /// <summary>上/下线通知防抖记录：key = deviceId → 上次弹通知时间。</summary>
+    private readonly Dictionary<string, DateTime> _lastPresenceToastAt = new();
+    /// <summary>上/下线通知防抖窗口：窗口内同设备的任何方向（上线/下线）通知只弹一次，
+    /// 屏蔽半开看门狗重建/App 重启顶替旧连接/网络抖动/Doze 唤醒导致的"设备自己反复上下线"骚扰。</summary>
+    private static readonly TimeSpan PresenceToastCooldown = TimeSpan.FromSeconds(120);
+    /// <summary>下线宽限：设备消失后不立刻弹"下线"，等待此时长；期间设备回来则下线取消、
+    /// 上线也静默（App 重启/网络抖动/Doze 唤醒等短断连完全不打扰）；只有真离线超时才提示。</summary>
+    private static readonly TimeSpan OfflineGrace = TimeSpan.FromSeconds(10);
+    /// <summary>宽限期中的设备：deviceId → 取消句柄。上线时若设备在此集合里，
+    /// 说明是短暂断线后恢复，取消待发下线并静默本次上线。</summary>
+    private readonly Dictionary<string, CancellationTokenSource> _pendingOffline = new();
+    private readonly object _pendingOfflineLock = new();
+
+    private bool ShouldToastPresence(string deviceId)
+    {
+        var key = deviceId;
         var now = DateTime.UtcNow;
         lock (_lastPresenceToastAt)
         {

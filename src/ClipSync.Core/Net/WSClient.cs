@@ -929,8 +929,10 @@ public sealed class WSClient : INotifyPropertyChanged
     /// 屏蔽半开看门狗重建/App 重启顶替旧连接/网络抖动/Doze 唤醒导致的"设备自己反复上下线"骚扰。</summary>
     private static readonly TimeSpan PresenceToastCooldown = TimeSpan.FromSeconds(120);
     /// <summary>下线宽限：设备消失后不立刻弹"下线"，等待此时长；期间设备回来则下线取消、
-    /// 上线也静默（App 重启/网络抖动/Doze 唤醒等短断连完全不打扰）；只有真离线超时才提示。</summary>
-    private static readonly TimeSpan OfflineGrace = TimeSpan.FromSeconds(10);
+    /// 上线也静默（App 重启/网络抖动/Doze 唤醒等短断连完全不打扰）；只有真离线超时才提示。
+    /// 只取 5s：旧连接关闭→新连接重连的 gap 通常 1~4s，覆盖秒回足够，
+    /// 又不让真实下线提示明显滞后。</summary>
+    private static readonly TimeSpan OfflineGrace = TimeSpan.FromSeconds(5);
     /// <summary>宽限期中的设备：deviceId → 取消句柄。上线时若设备在此集合里，
     /// 说明是短暂断线后恢复，取消待发下线并静默本次上线。</summary>
     private readonly Dictionary<string, CancellationTokenSource> _pendingOffline = new();

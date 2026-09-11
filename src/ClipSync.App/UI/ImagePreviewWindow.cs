@@ -1,16 +1,92 @@
+using System.IO;
 using System.Windows;
 using System.Windows.Controls;
 using System.Windows.Input;
 using System.Windows.Media;
 using System.Windows.Media.Imaging;
+using ClipSync.Core.Storage;
+using Microsoft.Win32;
 
 namespace ClipSync.App.UI;
+
+// ============================================================
+// ImageSaver：图片另存为（弹窗 / 最近 / 历史 共用）
+// - WPF 自带 SaveFileDialog，默认 PNG，可选 JPEG
+// - 默认目录：上次保存位置 → 下载目录；默认文件名 ClipSync_时间戳.png
+// - 保存成功后记住目录，失败弹 AppDialog
+// ============================================================
+public static class ImageSaver
+{
+    /// <summary>弹出另存为对话框保存图片。返回 true=已保存，false=取消或失败。</summary>
+    public static bool SaveWithDialog(BitmapSource bmp, Window? owner = null)
+    {
+        var settings = SettingsStore.Shared;
+
+        string? initialDir = settings.LastImageSaveDir;
+        if (string.IsNullOrEmpty(initialDir) || !Directory.Exists(initialDir))
+        {
+            initialDir = Path.Combine(
+                Environment.GetFolderPath(Environment.SpecialFolder.UserProfile), "Downloads");
+        }
+
+        var dlg = new SaveFileDialog
+        {
+            Title = "保存图片",
+            Filter = "PNG 图片 (*.png)|*.png|JPEG 图片 (*.jpg;*.jpeg)|*.jpg;*.jpeg",
+            FilterIndex = 1,
+            FileName = $"ClipSync_{DateTime.Now:yyyyMMdd_HHmmss}.png",
+            InitialDirectory = Directory.Exists(initialDir) ? initialDir : "",
+            AddExtension = true,
+            RestoreDirectory = false,
+        };
+
+        bool? ok = owner is not null ? dlg.ShowDialog(owner) : dlg.ShowDialog();
+        if (ok != true || string.IsNullOrEmpty(dlg.FileName)) return false;
+        try
+        {
+            EncodeToFile(bmp, dlg.FileName);
+            settings.LastImageSaveDir = Path.GetDirectoryName(dlg.FileName);
+            return true;
+        }
+        catch (Exception ex)
+        {
+            AppDialog.Alert($"图片保存失败：{ex.Message}", "保存失败", DialogIcon.Error);
+            return false;
+        }
+    }
+
+    private static void EncodeToFile(BitmapSource src, string path)
+    {
+        var ext = Path.GetExtension(path).ToLowerInvariant();
+        bool asJpeg = ext is ".jpg" or ".jpeg";
+
+        BitmapEncoder encoder;
+        if (asJpeg)
+        {
+            // JPEG 不支持透明通道：统一转 Bgr24，否则带 alpha 的 PNG 帧编码会抛异常
+            var converted = src.Format == PixelFormats.Bgr24
+                ? src
+                : new FormatConvertedBitmap(src, PixelFormats.Bgr24, null, 0);
+            encoder = new JpegBitmapEncoder { QualityLevel = 90 };
+            encoder.Frames.Add(BitmapFrame.Create(converted));
+        }
+        else
+        {
+            encoder = new PngBitmapEncoder();
+            encoder.Frames.Add(BitmapFrame.Create(src));
+        }
+
+        using var fs = new FileStream(path, FileMode.Create, FileAccess.Write);
+        encoder.Save(fs);
+    }
+}
 
 // ============================================================
 // ImagePreviewWindow：大图片预览窗口
 // - 居中显示，最大占屏幕 80%，图片等比缩放
 // - ESC 关闭、点击空白处关闭
 // - 复制按钮：把原始图片写入剪贴板
+// - 保存按钮：另存为 PNG/JPEG（Ctrl+S）
 // - 从 Toast 点开时保持 ShowActivated=false，避免把主窗口顶出来
 // ============================================================
 public sealed class ImagePreviewWindow : Window
@@ -48,6 +124,11 @@ public sealed class ImagePreviewWindow : Window
             else if (e.Key == Key.C && Keyboard.Modifiers == ModifierKeys.Control)
             {
                 CopyToClipboard();
+                e.Handled = true;
+            }
+            else if (e.Key == Key.S && Keyboard.Modifiers == ModifierKeys.Control)
+            {
+                ImageSaver.SaveWithDialog(_bmp, this);
                 e.Handled = true;
             }
         };
@@ -91,6 +172,29 @@ public sealed class ImagePreviewWindow : Window
         DockPanel.SetDock(info, Dock.Left);
         barRow.Children.Add(info);
 
+        // 右侧按钮组：保存 + 复制
+        var actions = new StackPanel
+        {
+            Orientation = Orientation.Horizontal,
+            HorizontalAlignment = HorizontalAlignment.Right,
+        };
+
+        var saveBtn = new Button
+        {
+            Content = "保存",
+            FontSize = 12,
+            FontWeight = FontWeights.Medium,
+            Padding = new Thickness(18, 6, 18, 6),
+            Margin = new Thickness(0, 0, 8, 0),
+            Background = new SolidColorBrush(Color.FromRgb(0xF3, 0xF4, 0xF6)),
+            Foreground = new SolidColorBrush(Color.FromRgb(0x37, 0x41, 0x51)),
+            BorderThickness = new Thickness(0),
+            Cursor = Cursors.Hand,
+            ToolTip = "另存为图片（Ctrl+S）",
+        };
+        saveBtn.Click += (_, _) => ImageSaver.SaveWithDialog(_bmp, this);
+        actions.Children.Add(saveBtn);
+
         var copyBtn = new Button
         {
             Content = "复制",
@@ -100,11 +204,13 @@ public sealed class ImagePreviewWindow : Window
             Background = new SolidColorBrush(Color.FromRgb(0x4F, 0x46, 0xE5)),
             Foreground = Brushes.White,
             BorderThickness = new Thickness(0),
-            Cursor = System.Windows.Input.Cursors.Hand,
-            HorizontalAlignment = HorizontalAlignment.Right,
+            Cursor = Cursors.Hand,
+            ToolTip = "复制到剪贴板（Ctrl+C）",
         };
         copyBtn.Click += (_, _) => CopyToClipboard();
-        barRow.Children.Add(copyBtn);
+        actions.Children.Add(copyBtn);
+
+        barRow.Children.Add(actions);
 
         bar.Child = barRow;
         Grid.SetRow(bar, 1);

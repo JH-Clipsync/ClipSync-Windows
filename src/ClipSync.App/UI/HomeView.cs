@@ -1133,6 +1133,7 @@ public class HomeView
         content.Children.Add(titleRow);
 
         // 图片或文本
+        BitmapSource? imageBmp = null;
         if (msg.Content == MessageContent.Image && !string.IsNullOrEmpty(msg.Payload.Data))
         {
             try
@@ -1141,6 +1142,7 @@ public class HomeView
                 using var ms = new MemoryStream(bytes);
                 var bmp = BitmapFrame.Create(ms, BitmapCreateOptions.None, BitmapCacheOption.OnLoad);
                 bmp.Freeze();
+                imageBmp = bmp;
                 var imgCard = new Border
                 {
                     Margin = new Thickness(0, 6, 0, 0),
@@ -1193,6 +1195,14 @@ public class HomeView
         {
             ClipboardWriter.Apply(msg.Payload);
         }));
+        if (imageBmp is not null)
+        {
+            var bmpToSave = imageBmp;
+            actions.Children.Add(MakePillBtn("保存", primary: false, _ =>
+            {
+                ImageSaver.SaveWithDialog(bmpToSave);
+            }));
+        }
         content.Children.Add(actions);
 
         Grid.SetColumn(content, 1);

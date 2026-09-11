@@ -455,7 +455,7 @@ public partial class ToastWindow : Window
         }
         else if (IsImageMsg)
         {
-            // 图片消息：复制 + 预览；复制后不自动关，让用户可以接着点预览
+            // 图片消息：复制 + 预览 + 保存；复制/保存后不自动关，让用户可以接着点预览
             var copy = MakePill("复制", true, (_, _) =>
             {
                 ClipboardWriter.Apply(_msg.Payload);
@@ -469,8 +469,16 @@ public partial class ToastWindow : Window
                     ImagePreviewWindow.Show(bmp);
                 }
             });
+            var save = MakePill("保存", false, (_, _) =>
+            {
+                if (DecodeImage() is { } bmp)
+                {
+                    ImageSaver.SaveWithDialog(bmp);
+                }
+            });
             row.Children.Add(copy);
             row.Children.Add(preview);
+            row.Children.Add(save);
         }
         else
         {

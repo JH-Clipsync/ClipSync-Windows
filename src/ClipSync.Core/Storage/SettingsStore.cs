@@ -38,6 +38,7 @@ public sealed class SettingsStore : INotifyPropertyChanged
         [JsonPropertyName("autoStart")] public bool AutoStart { get; set; }
         [JsonPropertyName("minimizeToTrayOnClose")] public bool MinimizeToTrayOnClose { get; set; } = true;
         [JsonPropertyName("onboardingCompleted")] public bool OnboardingCompleted { get; set; }
+        [JsonPropertyName("lastImageSaveDir")] public string? LastImageSaveDir { get; set; }
     }
 
     private readonly Snapshot _data;
@@ -155,6 +156,18 @@ public sealed class SettingsStore : INotifyPropertyChanged
     {
         get => _data.OnboardingCompleted;
         set { if (_data.OnboardingCompleted == value) return; _data.OnboardingCompleted = value; Persist(); }
+    }
+
+    /// <summary>图片另存为时上次使用的目录，下次直接定位到这里。</summary>
+    public string? LastImageSaveDir
+    {
+        get => _data.LastImageSaveDir;
+        set
+        {
+            if (_data.LastImageSaveDir == value) return;
+            _data.LastImageSaveDir = value;
+            Persist();
+        }
     }
 
     /// <summary>

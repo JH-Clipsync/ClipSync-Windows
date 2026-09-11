@@ -242,6 +242,7 @@ public class HistoryView
         content.Children.Add(titleRow);
 
         // 内容预览
+        BitmapSource? imageBmp = null;
         if (msg.Content == MessageContent.Image && !string.IsNullOrEmpty(msg.Payload.Data))
         {
             try
@@ -250,6 +251,7 @@ public class HistoryView
                 using var ms = new MemoryStream(bytes);
                 var bmp = BitmapFrame.Create(ms, BitmapCreateOptions.None, BitmapCacheOption.OnLoad);
                 bmp.Freeze();
+                imageBmp = bmp;
                 var imgCard = new Border
                 {
                     Margin = new Thickness(0, 6, 0, 0),
@@ -299,6 +301,11 @@ public class HistoryView
             actions.Children.Add(MakePill($"复制 {code}", primary: true, _ => ClipboardWriter.CopyText(code)));
         }
         actions.Children.Add(MakePill("复制", primary: code is null, _ => ClipboardWriter.Apply(msg.Payload)));
+        if (imageBmp is not null)
+        {
+            var bmpToSave = imageBmp;
+            actions.Children.Add(MakePill("保存", primary: false, _ => ImageSaver.SaveWithDialog(bmpToSave)));
+        }
         actions.Children.Add(MakePill("删除", primary: false, _ =>
         {
             if (AppDialog.Confirm(

@@ -42,15 +42,20 @@ public static class ImageSaver
         };
 
         bool? ok;
-        var effectiveOwner = owner ?? ResolveStableOwner();
+        var effectiveOwner = owner;
+        if (effectiveOwner is not { IsLoaded: true, IsVisible: true })
+        {
+            effectiveOwner = ResolveVisibleOwner();
+        }
         if (effectiveOwner is not null)
         {
             ok = dlg.ShowDialog(effectiveOwner);
         }
         else
         {
-            // 没有稳定宿主（主窗口默认隐藏）时不要让 WPF 自动拿当前激活的
-            // Toast 当 owner——Toast 一关闭保存对话框会被连带销毁。
+            // 没有当前可见的稳定宿主时用无 owner 对话框，由系统独立管理。
+            // 绝不为了挂对话框去激活/前置一个本应隐藏的主窗口，也不要让 WPF
+            // 自动拿当前激活的 Toast 当 owner——Toast 一关闭对话框会被连带销毁。
             ok = dlg.ShowDialog();
         }
         if (ok != true || string.IsNullOrEmpty(dlg.FileName)) return false;
@@ -68,11 +73,13 @@ public static class ImageSaver
     }
 
     /// <summary>
-    /// 找一个不会瞬时消失的窗口当对话框宿主：
+    /// 在“当前已可见”的窗口里找一个不会瞬时消失的对话框宿主：
     /// 优先 Application.MainWindow，其次任意可见的普通窗口；
     /// 显式排除 Toast/InfoToast/预览窗这些短生命周期窗口。都没有就返回 null。
+    /// 注意：只选已经可见的窗口，绝不激活一个本应隐藏的主窗口，否则点保存会
+    /// 把后台主窗口拽到最前。
     /// </summary>
-    private static Window? ResolveStableOwner()
+    private static Window? ResolveVisibleOwner()
     {
         var app = Application.Current;
         if (app is null) return null;
@@ -160,7 +167,7 @@ public sealed class ImagePreviewWindow : Window
             }
             else if (e.Key == Key.S && Keyboard.Modifiers == ModifierKeys.Control)
             {
-                ImageSaver.SaveWithDialog(_bmp);
+                ImageSaver.SaveWithDialog(_bmp, this);
                 e.Handled = true;
             }
         };
@@ -224,7 +231,7 @@ public sealed class ImagePreviewWindow : Window
             Cursor = WpfCursors.Hand,
             ToolTip = "另存为图片（Ctrl+S）",
         };
-        saveBtn.Click += (_, _) => ImageSaver.SaveWithDialog(_bmp);
+        saveBtn.Click += (_, _) => ImageSaver.SaveWithDialog(_bmp, this);
         actions.Children.Add(saveBtn);
 
         var copyBtn = new Button

@@ -24,6 +24,10 @@ public partial class ToastWindow : Window
     private readonly bool _showContent;
     private readonly string? _extractedCode;
 
+    // 5 秒自动关闭定时器提为字段：弹出保存/预览等交互对话框时需要手动停掉，
+    // 否则 Toast 自动 Close 会把以它为 owner 的模态对话框一起带走。
+    private System.Windows.Threading.DispatcherTimer? _autoCloseTimer;
+
     public event Action? ClosedByUser;
 
     public ToastWindow(SyncMessage msg)
@@ -76,17 +80,28 @@ public partial class ToastWindow : Window
         BeginAnimation(OpacityProperty, fadeIn);
 
         // 5 秒后自动淡出关闭
-        var timer = new System.Windows.Threading.DispatcherTimer { Interval = TimeSpan.FromSeconds(5) };
-        timer.Tick += (_, _) =>
+        _autoCloseTimer = new System.Windows.Threading.DispatcherTimer { Interval = TimeSpan.FromSeconds(5) };
+        _autoCloseTimer.Tick += (_, _) =>
         {
-            timer.Stop();
+            StopAutoClose();
             FadeOutAndClose();
         };
-        timer.Start();
+        _autoCloseTimer.Start();
+    }
+
+    /// <summary>取消 5 秒自动关闭（点击「保存」等需要弹出模态对话框时调用）。</summary>
+    public void StopAutoClose()
+    {
+        if (_autoCloseTimer is not null)
+        {
+            _autoCloseTimer.Stop();
+            _autoCloseTimer = null;
+        }
     }
 
     public void FadeOutAndClose()
     {
+        StopAutoClose();
         var fade = new DoubleAnimation(1, 0, TimeSpan.FromMilliseconds(300))
         {
             EasingFunction = new QuadraticEase { EasingMode = EasingMode.EaseIn },
@@ -471,10 +486,15 @@ public partial class ToastWindow : Window
             });
             var save = MakePill("保存", false, (_, _) =>
             {
-                if (DecodeImage() is { } bmp)
-                {
-                    ImageSaver.SaveWithDialog(bmp);
-                }
+                if (DecodeImage() is not { } bmp) return;
+                // 关键：先停掉 5 秒自动关闭，并立刻关掉 Toast。
+                // 否则 SaveFileDialog 默认以当前激活的 Toast 为 owner，
+                // Toast 一自动关闭，保存对话框会被系统连带销毁。
+                ClosedByUser?.Invoke();
+                StopAutoClose();
+                Hide();
+                Close();
+                ImageSaver.SaveWithDialog(bmp);
             });
             row.Children.Add(copy);
             row.Children.Add(preview);

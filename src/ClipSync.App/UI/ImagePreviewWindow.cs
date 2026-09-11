@@ -41,7 +41,18 @@ public static class ImageSaver
             RestoreDirectory = false,
         };
 
-        bool? ok = owner is not null ? dlg.ShowDialog(owner) : dlg.ShowDialog();
+        bool? ok;
+        var effectiveOwner = owner ?? ResolveStableOwner();
+        if (effectiveOwner is not null)
+        {
+            ok = dlg.ShowDialog(effectiveOwner);
+        }
+        else
+        {
+            // 没有稳定宿主（主窗口默认隐藏）时不要让 WPF 自动拿当前激活的
+            // Toast 当 owner——Toast 一关闭保存对话框会被连带销毁。
+            ok = dlg.ShowDialog();
+        }
         if (ok != true || string.IsNullOrEmpty(dlg.FileName)) return false;
         try
         {
@@ -55,6 +66,26 @@ public static class ImageSaver
             return false;
         }
     }
+
+    /// <summary>
+    /// 找一个不会瞬时消失的窗口当对话框宿主：
+    /// 优先 Application.MainWindow，其次任意可见的普通窗口；
+    /// 显式排除 Toast/InfoToast/预览窗这些短生命周期窗口。都没有就返回 null。
+    /// </summary>
+    private static Window? ResolveStableOwner()
+    {
+        var app = Application.Current;
+        if (app is null) return null;
+
+        if (app.MainWindow is { IsLoaded: true, IsVisible: true } main && !IsTransient(main)) return main;
+
+        return app.Windows
+            .Cast<Window>()
+            .FirstOrDefault(w => w.IsLoaded && w.IsVisible && !IsTransient(w));
+    }
+
+    private static bool IsTransient(Window w) =>
+        w is ToastWindow or InfoToastWindow or ImagePreviewWindow;
 
     private static void EncodeToFile(BitmapSource src, string path)
     {

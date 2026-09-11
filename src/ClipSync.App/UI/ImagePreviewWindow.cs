@@ -141,7 +141,7 @@ public sealed class ImagePreviewWindow : Window
         Height = 600;
         MinWidth = 320;
         MinHeight = 240;
-        WindowStartupLocation = WindowStartupLocation.CenterOwner;
+        WindowStartupLocation = WindowStartupLocation.CenterScreen;
 
         BuildLayout();
 
@@ -160,7 +160,7 @@ public sealed class ImagePreviewWindow : Window
             }
             else if (e.Key == Key.S && Keyboard.Modifiers == ModifierKeys.Control)
             {
-                ImageSaver.SaveWithDialog(_bmp, this);
+                ImageSaver.SaveWithDialog(_bmp);
                 e.Handled = true;
             }
         };
@@ -224,7 +224,7 @@ public sealed class ImagePreviewWindow : Window
             Cursor = WpfCursors.Hand,
             ToolTip = "另存为图片（Ctrl+S）",
         };
-        saveBtn.Click += (_, _) => ImageSaver.SaveWithDialog(_bmp, this);
+        saveBtn.Click += (_, _) => ImageSaver.SaveWithDialog(_bmp);
         actions.Children.Add(saveBtn);
 
         var copyBtn = new Button
@@ -298,10 +298,6 @@ public sealed class ImagePreviewWindow : Window
                 Height = h,
             };
             _open = win;
-            if (Application.Current.MainWindow is { IsLoaded: true } main)
-            {
-                win.Owner = main;
-            }
             win.Show();
         });
     }

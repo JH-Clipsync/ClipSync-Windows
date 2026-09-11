@@ -5,7 +5,8 @@ using System.Windows.Input;
 using System.Windows.Media;
 using System.Windows.Media.Imaging;
 using ClipSync.Core.Storage;
-using Microsoft.Win32;
+using SaveFileDialog = Microsoft.Win32.SaveFileDialog;
+using WpfCursors = System.Windows.Input.Cursors;
 
 namespace ClipSync.App.UI;
 
@@ -189,7 +190,7 @@ public sealed class ImagePreviewWindow : Window
             Background = new SolidColorBrush(Color.FromRgb(0xF3, 0xF4, 0xF6)),
             Foreground = new SolidColorBrush(Color.FromRgb(0x37, 0x41, 0x51)),
             BorderThickness = new Thickness(0),
-            Cursor = Cursors.Hand,
+            Cursor = WpfCursors.Hand,
             ToolTip = "另存为图片（Ctrl+S）",
         };
         saveBtn.Click += (_, _) => ImageSaver.SaveWithDialog(_bmp, this);
@@ -204,7 +205,7 @@ public sealed class ImagePreviewWindow : Window
             Background = new SolidColorBrush(Color.FromRgb(0x4F, 0x46, 0xE5)),
             Foreground = Brushes.White,
             BorderThickness = new Thickness(0),
-            Cursor = Cursors.Hand,
+            Cursor = WpfCursors.Hand,
             ToolTip = "复制到剪贴板（Ctrl+C）",
         };
         copyBtn.Click += (_, _) => CopyToClipboard();

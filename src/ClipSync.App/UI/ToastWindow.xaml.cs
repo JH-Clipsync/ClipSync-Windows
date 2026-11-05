@@ -20,13 +20,17 @@ using ClipSync.Core.Storage;
 // ============================================================
 public partial class ToastWindow : Window
 {
-    private readonly SyncMessage _msg;
+    // 同 id 的更完整帧（打码占位 → 明文）到达时由 UpdateMessage 原地替换，故不能 readonly。
+    private SyncMessage _msg;
     private readonly bool _showContent;
-    private readonly string? _extractedCode;
+    private string? _extractedCode;
 
     // 5 秒自动关闭定时器提为字段：弹出保存/预览等交互对话框时需要手动停掉，
     // 否则 Toast 自动 Close 会把以它为 owner 的模态对话框一起带走。
     private System.Windows.Threading.DispatcherTimer? _autoCloseTimer;
+
+    /// <summary>淡出关闭已启动：UpdateMessage 遇到正在关闭的 Toast 直接放弃替换。</summary>
+    private bool _closing;
 
     public event Action? ClosedByUser;
 
@@ -99,8 +103,34 @@ public partial class ToastWindow : Window
         }
     }
 
+    /// <summary>同 id 的更完整帧到达时原地替换横幅内容（不新开窗口、不重排动画），
+    /// 并重启 5 秒自动关闭，给新内容完整的展示时间。ToastManager 按消息 id 去重时调用。
+    /// 已开始淡出关闭的 Toast 不再替换（调用方仍会更新历史与 LRU 记录）。</summary>
+    public void UpdateMessage(SyncMessage msg)
+    {
+        if (_closing) return;
+        _msg = msg;
+        _extractedCode = ExtractCode(msg);
+        // BuildContent 全部由 _msg/_extractedCode 派生，直接重建内容树即可原地换文；
+        // 按钮闭包读的是实例字段，重建后自然指向新消息。
+        Content = BuildContent();
+        InvalidateMeasure();
+        UpdateLayout();
+
+        StopAutoClose();
+        _autoCloseTimer = new System.Windows.Threading.DispatcherTimer { Interval = TimeSpan.FromSeconds(5) };
+        _autoCloseTimer.Tick += (_, _) =>
+        {
+            StopAutoClose();
+            FadeOutAndClose();
+        };
+        _autoCloseTimer.Start();
+    }
+
     public void FadeOutAndClose()
     {
+        if (_closing) return;
+        _closing = true;
         StopAutoClose();
         var fade = new DoubleAnimation(1, 0, TimeSpan.FromMilliseconds(300))
         {

@@ -46,11 +46,27 @@ public sealed class HistoryStore
 
     // MARK: - 增
 
-    /// <summary>追加一条消息；已存在（同 id）则替换到最前。</summary>
+    /// <summary>追加一条消息；已存在（同 id）则替换到最前。
+    /// 同 id 且 payload 不同的后到帧若不比旧帧更完整（如明文已入库后又到打码帧），
+    /// 直接 return 保留旧条目：不替换、不置顶、不写盘、不触发 Changed，与 Mac HistoryStore 对齐。</summary>
     public void Append(SyncMessage message)
     {
         _dispatch(() =>
         {
+            if (!string.IsNullOrEmpty(message.Id))
+            {
+                SyncMessage? existing = null;
+                foreach (var m in Messages)
+                {
+                    if (m.Id == message.Id) { existing = m; break; }
+                }
+                if (existing is not null
+                    && !message.HasSamePayload(existing)
+                    && !message.IsMoreCompleteThan(existing))
+                {
+                    return;
+                }
+            }
             for (var i = Messages.Count - 1; i >= 0; i--)
             {
                 if (Messages[i].Id == message.Id) Messages.RemoveAt(i);

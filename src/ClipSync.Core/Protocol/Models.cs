@@ -1,6 +1,7 @@
 using System.Collections.Generic;
 using System.Text.Json;
 using System.Text.Json.Serialization;
+using System.Text.RegularExpressions;
 
 namespace ClipSync.Core.Protocol;
 
@@ -216,6 +217,34 @@ public sealed class SyncMessage
     /// <summary>是否是带 base64 数据的图片消息。</summary>
     [JsonIgnore]
     public bool HasImage => Content == MessageContent.Image && !string.IsNullOrEmpty(Payload.Data);
+
+    /// <summary>打码识别与 Android NotificationSmsListener 对齐：连续 5 个及以上 *。</summary>
+    private static readonly Regex MaskedBodyRegex = new(@"\*{5,}", RegexOptions.Compiled);
+
+    /// <summary>去重比较用正文：text 非空取 text，否则退回 preview（与 Mac dedupBody 同口径）。</summary>
+    [JsonIgnore]
+    public string DedupBody =>
+        !string.IsNullOrEmpty(Payload.Text) ? Payload.Text! : (Payload.Preview ?? "");
+
+    /// <summary>正文是否为系统「锁屏防偷窥」打码占位。</summary>
+    [JsonIgnore]
+    public bool LooksMaskedBody => MaskedBodyRegex.IsMatch(DedupBody);
+
+    /// <summary>同 id 后到帧是否比旧帧「更完整」，只允许升级不允许降级，
+    /// 口径与 Mac SyncMessage.isMoreComplete(than:) 逐条对齐：
+    /// 1) 旧帧打码、新帧为非空非打码明文；2) dedupBody 严格变长；3) 图片 data 从无到有。</summary>
+    public bool IsMoreCompleteThan(SyncMessage old)
+    {
+        if (!LooksMaskedBody && old.LooksMaskedBody && DedupBody.Length > 0) return true;
+        if (DedupBody.Length > old.DedupBody.Length) return true;
+        if (old.Payload.Data is null && Payload.Data is not null) return true;
+        return false;
+    }
+
+    /// <summary>payload 是否深度相同：按协议 JSON 归一化后逐字符比较，
+    /// 供同 id 复帧区分「完全重复帧」与「内容变化的降级/升级帧」。</summary>
+    public bool HasSamePayload(SyncMessage other) =>
+        ProtocolJson.Serialize(Payload) == ProtocolJson.Serialize(other.Payload);
 
     public static long NowMilliseconds() => DateTimeOffset.UtcNow.ToUnixTimeMilliseconds();
 }

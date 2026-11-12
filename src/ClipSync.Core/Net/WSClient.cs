@@ -723,10 +723,10 @@ public sealed class WSClient : INotifyPropertyChanged
             return;
         }
 
-        // 过滤自己发的消息
-        if (msg.From == DeviceId)
+        // 来源过滤必须早于踢下线处理和解密：本机文本/图片回环不进入任何通知链路。
+        if (IncomingMessagePolicy.IsFromLocalDevice(msg, DeviceId))
         {
-            Log.Info($"[WS] ⏭ 跳过本人消息 from={msg.From}");
+            Log.Info($"[WS] ⏭ 跳过本机消息 from={msg.From}");
             return;
         }
 

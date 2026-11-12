@@ -520,6 +520,14 @@ public partial class App : Application
     // ============================================================
     private void OnMessageReceived(SyncMessage msg)
     {
+        // 在真正产生副作用的入口兜底：本机复制/截图的回环绝不落历史、
+        // 重写剪贴板或弹 Toast；其它调用路径也不能绕过来源过滤。
+        if (IncomingMessagePolicy.IsFromLocalDevice(msg, WSClient.Shared.DeviceId))
+        {
+            Log.Info($"[App] ⏭ 已拦截本机来源消息 from={msg.From}");
+            return;
+        }
+
         // 1) 落盘到本地历史
         HistoryStore.Shared.Append(msg);
 
